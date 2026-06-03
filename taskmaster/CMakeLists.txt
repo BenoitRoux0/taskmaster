@@ -13,16 +13,25 @@ CPMAddPackage("gh:ToruNiina/toml11@4.4.0")
 
 find_package(QT NAMES Qt6 REQUIRED COMPONENTS Core HttpServer Concurrent)
 find_package(Qt6 REQUIRED COMPONENTS Core HttpServer Concurrent)
+find_package(CURL REQUIRED)
 
 qt_standard_project_setup()
 
 qt_add_executable(taskmaster
     main.cpp
+    Cli.cpp
+    Cli.hpp
+    CommandParser.cpp
+    CommandParser.hpp
+    HttpClient.cpp
+    HttpClient.hpp
 )
 
 target_link_libraries(taskmaster
     PRIVATE
         Qt::Core
+        readline
+        CURL::libcurl
 )
 
 install(TARGETS taskmaster
