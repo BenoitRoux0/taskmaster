@@ -3,6 +3,7 @@
 
 # include "CommandParser.hpp"
 # include "HttpClient.hpp"
+# include "ClientConfig.hpp"
 
 # include <iostream>
 # include <string>
@@ -15,7 +16,7 @@
 
 class Cli {
     public:
-        Cli();
+        Cli(const ClientConfig& config = ClientConfig());
         ~Cli();
 
         int run();
@@ -23,8 +24,8 @@ class Cli {
     private:
         std::optional<int> handleCommand(const Command& cmd);
 
-    CommandParser   _parser;
-    HttpClient      _client;
+        CommandParser   _parser;
+        HttpClient      _client;
 };
 
 

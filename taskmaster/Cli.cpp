@@ -1,6 +1,6 @@
 #include "Cli.hpp"
 
-Cli::Cli() {
+Cli::Cli(const ClientConfig& config) : _client(config) {
 }
 
 Cli::~Cli() {
@@ -26,19 +26,15 @@ int Cli::run() {
                 return *exitCode;
             }
         }
-        catch (std::exception& e) {
+        catch (const std::exception& e) {
             std::cerr << e.what() << std::endl;
-        }}
+        }
+    }
     return 0;
 }
 
 std::optional<int> Cli::handleCommand(const Command& cmd) {
-    CURL* curl = curl_easy_init();
-    if (!curl) {
-        throw std::runtime_error("Failed to initialize CURL");
-    }
-    HttpClient client(cmd, curl);
-
+    std::string response ;
     switch (cmd.type) {
         case commandType::NOTHING:
             break;
@@ -47,17 +43,19 @@ std::optional<int> Cli::handleCommand(const Command& cmd) {
         case commandType::STATUS:
             if (!cmd.args.empty()) {
                 for (const std::string& arg : cmd.args) {
-                    client.post("/status", "{\"name\":\"" + arg + "\"}");
+                    _client.post("/status", "{\"name\":\"" + arg + "\"}");
+                    std::cout << response << std::endl;
                 }
             }
             else {
-                client.get("/status");
+                _client.get("/status");
             }
             break;
         case commandType::START:
             if (!cmd.args.empty()) {
                 for (const std::string& arg : cmd.args) {
-                    client.post("/start", "{\"id\":\"" + arg + "\"}");
+                    _client.post("/start", "{\"id\":\"" + arg + "\"}");
+                    std::cout << response << std::endl;
                 }
             }
             else {
@@ -67,7 +65,8 @@ std::optional<int> Cli::handleCommand(const Command& cmd) {
         case commandType::STOP:
             if (!cmd.args.empty()) {
                 for (const std::string& arg : cmd.args) {
-                    client.post("/stop", "{\"id\":\"" + arg + "\"}");
+                    _client.post("/stop", "{\"id\":\"" + arg + "\"}");
+                    std::cout << response << std::endl;
                 }
             }
             else {
@@ -77,7 +76,8 @@ std::optional<int> Cli::handleCommand(const Command& cmd) {
         case commandType::RESTART:
             if (!cmd.args.empty()) {
                 for (const std::string& arg : cmd.args) {
-                    client.post("/restart", "{\"id\":\"" + arg + "\"}");
+                    _client.post("/restart", "{\"id\":\"" + arg + "\"}");
+                    std::cout << response << std::endl;
                 }
             }
             else {
@@ -86,7 +86,8 @@ std::optional<int> Cli::handleCommand(const Command& cmd) {
             break;
         case commandType::RELOAD:
             if (cmd.args.empty()) {
-                client.post("/reload", "");
+                _client.post("/reload", "");
+                std::cout << response << std::endl;
             }
             else {
                 std::println("Reload does not take any arguments");

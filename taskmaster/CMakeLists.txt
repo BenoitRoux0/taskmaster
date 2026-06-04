@@ -25,6 +25,7 @@ qt_add_executable(taskmaster
     CommandParser.hpp
     HttpClient.cpp
     HttpClient.hpp
+        ClientConfig.hpp
 )
 
 target_link_libraries(taskmaster
