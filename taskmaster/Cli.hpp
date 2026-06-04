@@ -8,6 +8,7 @@
 # include <string>
 # include <print>
 # include <exception>
+# include <optional>
 # include <readline/readline.h>
 # include <readline/history.h>
 # include <curl/curl.h>
@@ -19,7 +20,9 @@ class Cli {
 
         int run();
 
-private:
+    private:
+        std::optional<int> handleCommand(const Command& cmd);
+
     CommandParser   _parser;
     HttpClient      _client;
 };

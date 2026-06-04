@@ -18,7 +18,7 @@ Command CommandParser::parseInput(const std::string& input) {
 
 	size_t spacePos = trimmed.find(' ');
 	std::string commandStr = (spacePos == std::string::npos) ? trimmed : trimmed.substr(0, spacePos);
-	cmd.args = (spacePos == std::string::npos) ? "" : trimmed.substr(spacePos + 1);
+	cmd.args = (spacePos == std::string::npos) ? std::vector<std::string>() : std::vector<std::string>{trimmed.substr(spacePos + 1)};
 
 	if (commandStr == "status") {
 		cmd.type = commandType::STATUS;

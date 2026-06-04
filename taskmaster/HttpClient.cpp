@@ -7,7 +7,7 @@ HttpClient::HttpClient() {
 	_curl = nullptr;
 }
 
-HttpClient::HttpClient(Command command, CURL* curl) {
+HttpClient::HttpClient(const Command& command, CURL* curl) {
 	_command	= command;
 	_curl		= curl;
 }
@@ -24,22 +24,27 @@ static size_t writeCallback(char *ptr, size_t size, size_t nmemb, void *userdata
 
 std::string HttpClient::get(const std::string& url) {
 	std::string	response;
+	long		httpCode;
 
 	curl_easy_setopt(_curl, CURLOPT_URL, url.c_str());
 	curl_easy_setopt(_curl, CURLOPT_WRITEFUNCTION, writeCallback);
 	curl_easy_setopt(_curl, CURLOPT_WRITEDATA, &response);
 
 	CURLcode res = curl_easy_perform(_curl);
-	// curl_easy_cleanup(_curl);
 	if (res != CURLE_OK) {
 		throw std::runtime_error(curl_easy_strerror(res));
+	}
+	curl_easy_getinfo(_curl, CURLINFO_RESPONSE_CODE, &httpCode);
+	if (httpCode != 200) {
+		throw std::runtime_error("HTTP request failed with code: " + std::to_string(httpCode));
 	}
 
 	return response;
 }
 
-std::string HttpClient::post(const std::string& url, std::string json) {
+std::string HttpClient::post(const std::string& url, const std::string& json) {
 	std::string	response;
+	long		httpCode;
 	curl_slist* header = nullptr;
 	header = curl_slist_append(header, "Content-Type: application/json");
 
@@ -51,10 +56,13 @@ std::string HttpClient::post(const std::string& url, std::string json) {
 	curl_easy_setopt(_curl, CURLOPT_WRITEDATA, &response);
 
 	CURLcode res = curl_easy_perform(_curl);
-	// curl_easy_cleanup(_curl);
 	curl_slist_free_all(header);
 	if (res != CURLE_OK) {
 		throw std::runtime_error(curl_easy_strerror(res));
+	}
+	curl_easy_getinfo(_curl, CURLINFO_RESPONSE_CODE, &httpCode);
+	if (httpCode != 200) {
+		throw std::runtime_error("HTTP request failed with code: " + std::to_string(httpCode));
 	}
 
 	return response;

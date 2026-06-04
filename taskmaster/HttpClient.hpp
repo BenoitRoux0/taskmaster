@@ -1,6 +1,7 @@
 #ifndef TASKMASTER_HTTPCLIENT_HPP
 #define TASKMASTER_HTTPCLIENT_HPP
 
+#include <optional>
 # include <string>
 # include <stdexcept>
 # include <curl/curl.h>
@@ -10,11 +11,11 @@
 class HttpClient {
 	public:
 		HttpClient();
-		HttpClient(Command command, CURL* curl);
+		HttpClient(const Command& command, CURL* curl);
 		~HttpClient();
 
 		std::string get(const std::string& url);
-		std::string post(const std::string& url, std::string json);
+		std::string post(const std::string& url, const std::string& json);
 
 	private:
 		Command _command;

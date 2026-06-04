@@ -2,6 +2,7 @@
 # define TASKMASTER_COMMANDPARSER_HPP
 
 # include <string>
+# include <vector>
 # include <stdexcept>
 
 enum class commandType {
@@ -15,8 +16,8 @@ enum class commandType {
 };
 
 struct Command {
-    commandType type;
-    std::string args;
+    commandType                 type;
+    std::vector<std::string>    args;
 };
 
 class CommandParser {
