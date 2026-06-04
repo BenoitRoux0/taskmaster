@@ -1,10 +1,9 @@
 #ifndef COMMON_H
 #define COMMON_H
+#include <string>
 
-class Common
-{
-public:
-    Common();
+struct taskData {
+	std::string cmd;
 };
 
 #endif // COMMON_H

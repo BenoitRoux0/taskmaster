@@ -1,0 +1,38 @@
+#include "HttpRequest.hpp"
+
+#include <utility>
+
+HttpRequest::HttpRequest(std::string url, std::string protocol, std::string version,
+                         std::string method,
+                         const std::map<std::string, std::string>& headers,
+                         std::string body): _url(std::move(url)), _protocol(std::move(protocol)),
+                                            _version(std::move(version)), _method(std::move(method)), _headers(headers),
+                                            _body(std::move(body)) {}
+
+const std::string& HttpRequest::getUrl() const {
+	return _url;
+}
+
+const std::string& HttpRequest::getProtocol() const {
+	return _protocol;
+}
+
+const std::string& HttpRequest::getVersion() const {
+	return _version;
+}
+
+const std::string& HttpRequest::getMethod() const {
+	return _method;
+}
+
+const std::string& HttpRequest::getHeader(const std::string& field) const {
+	return _headers.at(field);
+}
+
+const std::map<std::string, std::string>& HttpRequest::getHeaders() const {
+	return _headers;
+}
+
+const std::string& HttpRequest::getBody() const {
+	return _body;
+}
