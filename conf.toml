@@ -1,0 +1,16 @@
+[server]
+port = 12345
+
+[programs."ls"]
+cmd = "ls /home/beroux/"
+
+[programs."ls".env]
+HELLO = "World"
+TEST = "Mars"
+
+[programs.cat]
+cmd = "cat /home/beroux/.local/share/applications/clion.desktop"
+
+[programs.cat.env]
+HELLO = "World"
+TEST = "Mars"
