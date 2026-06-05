@@ -1,4 +1,7 @@
 #include "CommandParser.hpp"
+#include <print>
+#include <string>
+#include <sstream>
 
 CommandParser::CommandParser() {
 }
@@ -6,19 +9,36 @@ CommandParser::CommandParser() {
 CommandParser::~CommandParser() {
 }
 
+static std::string trim(const std::string& input) {
+	constexpr auto	whitespace = " \t\n\r\f\v";
+	std::string		str2 = input;
+
+	str2.erase(0, input.find_first_not_of(whitespace));
+	str2.erase(input.find_last_not_of(whitespace) + 1);
+
+	return str2;
+}
+
 Command CommandParser::parseInput(const std::string& input) {
 	Command		cmd{};
-	std::string trimmed = input;
-	trimmed.erase(0, trimmed.find_first_not_of(" \t\n\r\f\v"));
+	std::string trimmed = trim(input);
 	if (trimmed.empty()) {
 		cmd.type = commandType::NOTHING;
 		return cmd;
 	}
-	trimmed.erase(trimmed.find_last_not_of(" \t\n\r\f\v") + 1);
 
-	size_t spacePos = trimmed.find(' ');
-	std::string commandStr = (spacePos == std::string::npos) ? trimmed : trimmed.substr(0, spacePos);
-	cmd.args = (spacePos == std::string::npos) ? std::vector<std::string>() : std::vector<std::string>{trimmed.substr(spacePos + 1)};
+	std::istringstream	iss(trimmed);
+	std::string			arg;
+
+	if (!(iss >> arg)) {
+		cmd.type = commandType::NOTHING;
+		return cmd;
+	}
+
+	std::string commandStr = arg;
+	while (iss >> arg) {
+		cmd.args.push_back(arg);
+	}
 
 	if (commandStr == "status") {
 		cmd.type = commandType::STATUS;
