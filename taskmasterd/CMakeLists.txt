@@ -33,6 +33,7 @@ add_executable(taskmasterd
         src/HttpResponseBuilder.cpp
         src/AcceptSocket.cpp
         src/Socket.cpp
+        src/Logger.cpp
 )
 
 target_compile_options(taskmasterd PUBLIC -Wall -Wextra -Werror)

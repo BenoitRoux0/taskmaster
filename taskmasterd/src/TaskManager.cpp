@@ -4,7 +4,7 @@
 #include <print>
 #include <ranges>
 
-#include "common.hpp"
+#include "Logger.hpp"
 #include "serializer.hpp"
 #include "../../common/common.h"
 
@@ -31,7 +31,7 @@ void TaskManager::stop() {
 
 void TaskManager::run() {
 	server.onRequest([&](const HttpRequest& request) -> HttpResponse {
-		std::println("received: {}", request.getUrl());
+		Logger::getInstance("Task master", stdout)->write("received: {}", request.getUrl());
 
 		std::vector<taskData> data{};
 
