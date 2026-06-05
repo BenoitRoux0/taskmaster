@@ -8,34 +8,38 @@
 #include "HttpResponse.hpp"
 #include "HttpSessionSocket.hpp"
 #include "ServerConf.hpp"
+#include <sys/signalfd.h>
 
 class Socket;
 
-class HttpServer {
+class Server {
 	int                                      _epollFd;
 	int                                      _accept_socket = -1;
 	std::optional<ServerConf>                _conf;
-	std::map<int, Socket*>                   _sockets;
+	std::map<int, std::shared_ptr<Socket>>   _sockets;
 	epoll_event*                             _events;
-	std::function<HttpResponse(HttpRequest)> _onRequest;
+	std::function<HttpResponse(HttpRequest)> _onHttpRequest;
+	std::function<void(signalfd_siginfo)>    _onChildRequest;
 	std::vector<int>                         _toRemove;
 	bool                                     _stop{false};
 
 public:
-	HttpServer();
-	~HttpServer();
+	Server();
+	~Server();
 
 	void loadConf(ServerConf conf);
 
 	void run();
 
-	void registerSession(int sock);
+	void registerSocket(std::shared_ptr<Socket> sock);
 
 	void sendResponse(int socket, const HttpResponse& response);
 	void endSending(int socket);
-	void handleRequest(int socket, const HttpRequest& http_request);
+	void handleHttpRequest(int socket, const HttpRequest& http_request);
+	void handleSignalRequest(const signalfd_siginfo& sig_request);
 
-	void onRequest(std::function<HttpResponse(HttpRequest)> callback);
+	void onHttpRequest(std::function<HttpResponse(HttpRequest)> callback);
+	void onChildRequest(std::function<void(signalfd_siginfo)> callback);
 	void stop();
 	void remove(int socket);
 };

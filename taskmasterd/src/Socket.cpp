@@ -2,9 +2,13 @@
 
 #include <print>
 
-Socket::Socket(HttpServer& server, const int sock): _server(server), _socket(sock) {}
+Socket::Socket(Server& server, const int sock): _server(server), _fd(sock) {}
+
+int Socket::getFd() {
+	return _fd;
+}
 
 Socket::~Socket() {
-	std::println("close: {}", _socket);
-	close(_socket);
+	std::println("close: {}", _fd);
+	close(_fd);
 }

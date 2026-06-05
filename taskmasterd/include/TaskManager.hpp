@@ -6,7 +6,7 @@
 
 #include <toml.hpp>
 
-#include "HttpServer.hpp"
+#include "Server.hpp"
 
 class TaskManager {
 	static TaskManager _instance;
@@ -26,7 +26,7 @@ private:
 
 	~TaskManager();
 
-	HttpServer  server;
+	Server  server;
 	std::string _conf;
 
 	void confHttpServer(ServerConf conf);

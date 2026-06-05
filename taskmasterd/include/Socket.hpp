@@ -5,21 +5,23 @@
 #include <cstdint>
 #include <string>
 
-class HttpServer;
+class Server;
 
 class Socket {
 public:
 	Socket() = delete;
-	Socket(HttpServer& server, const int sock);
+	Socket(Server& server, int sock);
 
 	virtual void handleEvent(uint32_t event) = 0;
 	virtual void send(const std::string& string) = 0;
 	virtual bool keepAlive() = 0;
 
+	int getFd();
+
 	virtual ~Socket();
 
 protected:
-	HttpServer& _server;
-	int _socket;
+	Server& _server;
+	int         _fd;
 };
 #endif // SOCKET_HPP

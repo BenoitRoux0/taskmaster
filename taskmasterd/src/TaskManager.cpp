@@ -6,6 +6,7 @@
 
 #include "Logger.hpp"
 #include "serializer.hpp"
+#include "SignalSocket.hpp"
 #include "../../common/common.h"
 
 TaskManager TaskManager::_instance{};
@@ -30,7 +31,7 @@ void TaskManager::stop() {
 }
 
 void TaskManager::run() {
-	server.onRequest([&](const HttpRequest& request) -> HttpResponse {
+	server.onHttpRequest([&](const HttpRequest& request) -> HttpResponse {
 		Logger::getInstance("Task master", stdout)->write("received: {}", request.getUrl());
 
 		std::vector<taskData> data{};
@@ -41,29 +42,37 @@ void TaskManager::run() {
 
 		return {stackixx::serialize(data)};
 	});
+
+	server.onChildRequest([&](const signalfd_siginfo& siginfo) {
+		Logger::getInstance("Task master", stdout)->write("received: {}", siginfo.ssi_signo);
+
+		switch (siginfo.ssi_signo) {
+			case SIGHUP:
+				getInstance().loadConf(std::nullopt);
+				break;
+			case SIGTERM:
+			case SIGINT:
+				getInstance().stop();
+				break;
+		}
+	});
+
+	sigset_t set;
+	sigemptyset(&set);
+	sigaddset(&set, SIGUSR1);
+	sigaddset(&set, SIGHUP);
+	sigaddset(&set, SIGTERM);
+	sigaddset(&set, SIGINT);
+	pthread_sigmask(SIG_BLOCK, &set, nullptr);
+
+	server.registerSocket(std::make_shared<SignalSocket>(server, -1, &set));
+
 	server.run();
 }
 
-TaskManager::TaskManager() {
-	signal(SIGHUP, []([[maybe_unused]] int sig) -> void {
-		getInstance().loadConf(std::nullopt);
-		std::println("Handle: {}", sig);
-	});
+TaskManager::TaskManager() {}
 
-	signal(SIGTERM, []([[maybe_unused]] int sig) -> void {
-		getInstance().stop();
-		std::println("Handle: {}", sig);
-	});
-
-	signal(SIGINT, []([[maybe_unused]] int sig) -> void {
-		getInstance().stop();
-		std::println("Handle: {}", sig);
-	});
-}
-
-TaskManager::~TaskManager() {
-	std::println("destroy manager");
-}
+TaskManager::~TaskManager() = default;
 
 void TaskManager::confHttpServer(ServerConf conf) {
 	server.loadConf(conf);

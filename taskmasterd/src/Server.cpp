@@ -1,4 +1,4 @@
-#include "HttpServer.hpp"
+#include "Server.hpp"
 
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -11,11 +11,11 @@
 #include "HttpResponse.hpp"
 #include "HttpSessionSocket.hpp"
 
-HttpServer::HttpServer(): _events(nullptr) {
+Server::Server(): _events(nullptr) {
 	_epollFd = epoll_create(1024);
 }
 
-void HttpServer::loadConf(ServerConf conf) {
+void Server::loadConf(ServerConf conf) {
 	if (_conf.has_value() && _conf->port == conf.port)
 		return;
 
@@ -54,15 +54,10 @@ void HttpServer::loadConf(ServerConf conf) {
 
 	epoll_ctl(_epollFd, EPOLL_CTL_ADD, _accept_socket, &event);
 
-	// int opt = 1;
-	// setsockopt(_accept_socket, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof (int));
-	// opt = 1;
-	// setsockopt(_accept_socket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof (int));
-
 	std::println("server port: {}", conf.port);
 }
 
-void HttpServer::run() {
+void Server::run() {
 	for (;!_stop;) {
 		_events = new epoll_event[_sockets.size()];
 
@@ -75,7 +70,6 @@ void HttpServer::run() {
 		delete[] _events;
 
 		for (auto toRemove: _toRemove) {
-			delete _sockets[toRemove];
 			_sockets.erase(toRemove);
 			epoll_ctl(_epollFd, EPOLL_CTL_DEL, toRemove, nullptr);
 		}
@@ -84,18 +78,20 @@ void HttpServer::run() {
 	}
 }
 
-void HttpServer::registerSession(int sock) {
+void Server::registerSocket(std::shared_ptr<Socket> sock) {
 	epoll_event event = { };
 
 	event.events = EPOLLIN | EPOLLRDHUP | EPOLLHUP;
-	event.data.fd = sock;
+	event.data.fd = sock->getFd();
 
-	epoll_ctl(_epollFd, EPOLL_CTL_ADD, sock, &event);
+	epoll_ctl(_epollFd, EPOLL_CTL_ADD, sock->getFd(), &event);
 
-	_sockets.insert(std::make_pair(sock, new HttpSessionSocket(*this, sock)));
+	std::println("register: {}", sock->getFd());
+
+	_sockets.insert(std::make_pair(sock->getFd(), sock));
 }
 
-void HttpServer::sendResponse(const int socket, const HttpResponse& response) {
+void Server::sendResponse(const int socket, const HttpResponse& response) {
 	epoll_event event = { };
 
 	event.events = EPOLLIN | EPOLLRDHUP | EPOLLHUP | EPOLLOUT;
@@ -106,7 +102,7 @@ void HttpServer::sendResponse(const int socket, const HttpResponse& response) {
 	_sockets[socket]->send(response.toString());
 }
 
-void HttpServer::endSending(const int socket) {
+void Server::endSending(const int socket) {
 	epoll_event event = { };
 
 	event.events = EPOLLIN | EPOLLRDHUP | EPOLLHUP;
@@ -119,29 +115,33 @@ void HttpServer::endSending(const int socket) {
 	}
 }
 
-void HttpServer::handleRequest(const int socket, const HttpRequest& http_request) {
-	const HttpResponse response = _onRequest(http_request);
+void Server::handleHttpRequest(const int socket, const HttpRequest& http_request) {
+	const HttpResponse response = _onHttpRequest(http_request);
 	this->sendResponse(socket, response);
 }
 
-void HttpServer::onRequest(std::function<HttpResponse(HttpRequest)> callback) {
-	_onRequest = std::move(callback);
+void Server::handleSignalRequest(const signalfd_siginfo& sig_request) {
+	_onChildRequest(sig_request);
 }
 
-void HttpServer::stop() {
+void Server::onHttpRequest(std::function<HttpResponse(HttpRequest)> callback) {
+	_onHttpRequest = std::move(callback);
+}
+
+void Server::onChildRequest(std::function<void(signalfd_siginfo)> callback) {
+	_onChildRequest = std::move(callback);
+}
+
+void Server::stop() {
 	_stop = true;
 }
 
-void HttpServer::remove(const int socket) {
+void Server::remove(const int socket) {
 	_toRemove.push_back(socket);
 }
 
-HttpServer::~HttpServer() {
+Server::~Server() {
 	std::println("destroy http server");
-
-	for (auto* socket: _sockets | std::views::values) {
-		delete socket;
-	}
 
 	close(_epollFd);
 }

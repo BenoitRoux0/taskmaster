@@ -14,7 +14,7 @@ class HttpSessionSocket: public Socket {
 	void _handleEpollOut();
 
 public:
-	explicit HttpSessionSocket(HttpServer& server, int sock);
+	explicit HttpSessionSocket(Server& server, int sock);
 
 	void handleEvent(uint32_t event) override;
 	void handleRequest();

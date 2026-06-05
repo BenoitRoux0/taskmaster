@@ -23,7 +23,7 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../libserial ${CMAKE_CURRENT_BINARY
 
 add_executable(taskmasterd
     main.cpp
-        src/HttpServer.cpp
+        src/Server.cpp
         src/Task.cpp
         src/TaskManager.cpp
         src/HttpSessionSocket.cpp
@@ -34,6 +34,7 @@ add_executable(taskmasterd
         src/AcceptSocket.cpp
         src/Socket.cpp
         src/Logger.cpp
+        src/SignalSocket.cpp
 )
 
 target_compile_options(taskmasterd PUBLIC -Wall -Wextra -Werror)

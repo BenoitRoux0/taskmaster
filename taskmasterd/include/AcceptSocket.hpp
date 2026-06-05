@@ -8,7 +8,7 @@
 
 class AcceptSocket: public Socket {
 public:
-	AcceptSocket(HttpServer& server, int sock);
+	AcceptSocket(Server& server, int sock);
 
 	void handleEvent(uint32_t event) override;
 

@@ -6,7 +6,7 @@
 #include <linux/sockios.h>
 #include "TaskManager.hpp"
 
-HttpSessionSocket::HttpSessionSocket(HttpServer& server, int sock): Socket(server, sock) {
+HttpSessionSocket::HttpSessionSocket(Server& server, int sock): Socket(server, sock) {
 	llhttp_settings_init(&settings);
 
 	settings.on_message_begin = [](llhttp_t* parser) -> int {
@@ -112,10 +112,10 @@ HttpSessionSocket::HttpSessionSocket(HttpServer& server, int sock): Socket(serve
 void HttpSessionSocket::_handleEpollIn() {
 	char buffer[1024];
 
-	const int received = recv(_socket, buffer, 1024, 0);
+	const int received = recv(_fd, buffer, 1024, 0);
 
 	if (received <= 0) {
-		_server.remove(_socket);
+		_server.remove(_fd);
 		return;
 	}
 
@@ -131,12 +131,12 @@ void HttpSessionSocket::_handleEpollOut() {
 		remaining = _sendBuffer.substr(1024);
 	}
 
-	::send(_socket, toSend.c_str(), toSend.length(), 0);
+	::send(_fd, toSend.c_str(), toSend.length(), 0);
 
 	_sendBuffer = remaining;
 
 	if (_sendBuffer.empty()) {
-		_server.endSending(_socket);
+		_server.endSending(_fd);
 	}
 }
 
@@ -146,12 +146,12 @@ void HttpSessionSocket::handleEvent(const uint32_t event) {
 	} else if (event & EPOLLOUT) {
 		_handleEpollOut();
 	} else if (event & EPOLLRDHUP || event & EPOLLHUP) {
-		_server.remove(_socket);
+		_server.remove(_fd);
 	}
 }
 
 void HttpSessionSocket::handleRequest() {
-	_server.handleRequest(_socket, request_builder.getRequest());
+	_server.handleHttpRequest(_fd, request_builder.getRequest());
 	request_builder.reset();
 }
 
