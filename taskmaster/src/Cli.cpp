@@ -49,6 +49,7 @@ std::optional<int> Cli::handleCommand(const Command& cmd) {
             }
             else {
                 response = _client.get("/status");
+                std::cout << response << std::endl;
             }
             break;
         case commandType::START:
