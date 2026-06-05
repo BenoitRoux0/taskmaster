@@ -11,18 +11,25 @@ include(${CMAKE_CURRENT_BINARY_DIR}/cmake/CPM.cmake)
 
 CPMAddPackage("gh:ToruNiina/toml11@4.4.0")
 
-find_package(QT NAMES Qt6 REQUIRED COMPONENTS Core HttpServer Concurrent)
-find_package(Qt6 REQUIRED COMPONENTS Core HttpServer Concurrent)
+find_package(CURL REQUIRED)
 
-qt_standard_project_setup()
-
-qt_add_executable(taskmaster
+add_executable(taskmaster
     main.cpp
+        src/Cli.cpp
+        include/Cli.hpp
+        src/CommandParser.cpp
+        include/CommandParser.hpp
+        src/HttpClient.cpp
+        include/HttpClient.hpp
+        include/ClientConfig.hpp
 )
+
+target_include_directories(taskmaster PRIVATE include)
 
 target_link_libraries(taskmaster
     PRIVATE
-        Qt::Core
+        readline
+        CURL::libcurl
 )
 
 install(TARGETS taskmaster
