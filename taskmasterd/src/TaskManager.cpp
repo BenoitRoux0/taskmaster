@@ -31,9 +31,17 @@ void TaskManager::stop() {
 }
 
 void TaskManager::handleDeath(pid_t pid) {
-	for (auto& task: runningTasks | std::views::values) {
+	const auto end = std::chrono::steady_clock::now();
+	for (auto& [name, task]: runningTasks) {
+		task.death = expected;
 		if (task._pid == pid) {
-			task.dead = true;
+			if (tasksConfs[name._name].start_time.has_value()) {
+				auto                          time = tasksConfs[name._name].start_time.value();
+				std::chrono::duration<double> diff = end - task.getStart();
+
+				if (diff < std::chrono::seconds(time))
+					task.death = unexpected;
+			}
 		}
 	}
 }
@@ -42,13 +50,13 @@ void TaskManager::run() {
 	server.onHttpRequest([&](const HttpRequest& request) -> HttpResponse {
 		Logger::getInstance("Task master", stdout)->write("received: {}", request.getUrl());
 
-		std::vector<RunningTask> data {};
+		std::vector<RunningTask> data{};
 
 		for (const auto& task: runningTasks | std::views::values) {
 			data.push_back(task);
 		}
 
-		return {stackixx::serialize(data)};
+		return {"stackixx::serialize(data)"};
 	});
 
 	server.onChildRequest([&](const signalfd_siginfo& siginfo) {
@@ -83,13 +91,12 @@ void TaskManager::run() {
 }
 
 void TaskManager::startPrograms() {
-	auto logger=Logger::getInstance("Task master", stdout);
-	for (auto [name,task]:tasksConfs) {
+	auto logger = Logger::getInstance("Task master", stdout);
+	for (auto [name,task]: tasksConfs) {
 		int pid = fork();
-		if (pid == 0){
+		if (pid == 0) {
 			execle("/bin/bash", "bash", "-c", task.cmd.c_str(), nullptr, environ);
-		}
-		else {
+		} else {
 			auto id = RunningTaskId(name, pid);
 			runningTasks[id] = RunningTask(pid);
 			logger->write("Launching program: {}", name);
