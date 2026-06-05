@@ -6,13 +6,16 @@
 
 #include <toml.hpp>
 
+#include "RunningTask.hpp"
+#include "RunningTaskId.hpp"
 #include "Server.hpp"
 
 class TaskManager {
 	static TaskManager _instance;
 
 public:
-	std::map<std::string, TaskConf> tasksConfs;
+	std::map<std::string, TaskConf>      tasksConfs;
+	std::map<RunningTaskId, RunningTask> runningTasks;
 
 	void loadConf(const std::optional<std::string>& confFile);
 	void stop();
@@ -27,7 +30,7 @@ private:
 
 	~TaskManager();
 
-	Server  server;
+	Server      server;
 	std::string _conf;
 
 	void confHttpServer(ServerConf conf);

@@ -14,7 +14,7 @@ CPMAddPackage("gh:ToruNiina/toml11@4.4.0")
 find_package(CURL REQUIRED)
 
 add_executable(taskmaster
-    main.cpp
+        main.cpp
         src/Cli.cpp
         include/Cli.hpp
         src/CommandParser.cpp
@@ -27,13 +27,13 @@ add_executable(taskmaster
 target_include_directories(taskmaster PRIVATE include)
 
 target_link_libraries(taskmaster
-    PRIVATE
+        PRIVATE
         readline
         CURL::libcurl
 )
 
 install(TARGETS taskmaster
-    BUNDLE  DESTINATION .
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        BUNDLE DESTINATION .
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )

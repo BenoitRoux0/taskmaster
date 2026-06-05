@@ -78,6 +78,8 @@ void TaskManager::startPrograms() {
 			execle("/bin/bash", "bash", "-c", task.cmd.c_str(), nullptr, environ);
 		}
 		else {
+			auto id = RunningTaskId(name, pid);
+			runningTasks[id] = RunningTask(pid);
 			logger->write("Launching program: {}", name);
 		}
 	}

@@ -7,7 +7,6 @@
 #include "RestartPolicy.hpp"
 #include "TaskConf.hpp"
 
-
 class Task {
 	std::string      command;
 	int              numProcs;

@@ -35,6 +35,8 @@ add_executable(taskmasterd
         src/Socket.cpp
         src/Logger.cpp
         src/SignalSocket.cpp
+        src/RunningTask.cpp
+        src/RunningTaskId.cpp
 )
 
 target_compile_options(taskmasterd PUBLIC -Wall -Wextra -Werror)
