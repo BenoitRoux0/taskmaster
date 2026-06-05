@@ -9,6 +9,7 @@ public:
 	RunningTask(pid_t pid);
 
 	pid_t _pid = 0;
+	bool  dead {false};
 };
 
 #endif // RUNNING_TASK_HPP

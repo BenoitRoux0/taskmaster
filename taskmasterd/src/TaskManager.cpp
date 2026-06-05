@@ -30,23 +30,35 @@ void TaskManager::stop() {
 	server.stop();
 }
 
+void TaskManager::handleDeath(pid_t pid) {
+	for (auto& task: runningTasks | std::views::values) {
+		if (task._pid == pid) {
+			task.dead = true;
+		}
+	}
+}
+
 void TaskManager::run() {
 	server.onHttpRequest([&](const HttpRequest& request) -> HttpResponse {
 		Logger::getInstance("Task master", stdout)->write("received: {}", request.getUrl());
 
-		std::vector<taskData> data{};
+		std::vector<RunningTask> data {};
 
-		for (const auto& task: tasksConfs | std::views::values) {
-			data.push_back({task.cmd});
+		for (const auto& task: runningTasks | std::views::values) {
+			data.push_back(task);
 		}
 
 		return {stackixx::serialize(data)};
 	});
 
 	server.onChildRequest([&](const signalfd_siginfo& siginfo) {
-		Logger::getInstance("Task master", stdout)->write("received: {}", siginfo.ssi_signo);
+		auto logger = Logger::getInstance("Task master", stdout);
 
 		switch (siginfo.ssi_signo) {
+			case SIGCHLD:
+				logger->write("A child is dead");
+				this->handleDeath(siginfo.ssi_pid);
+				break;
 			case SIGHUP:
 				getInstance().loadConf(std::nullopt);
 				break;
@@ -59,7 +71,7 @@ void TaskManager::run() {
 
 	sigset_t set;
 	sigemptyset(&set);
-	sigaddset(&set, SIGUSR1);
+	sigaddset(&set, SIGCHLD);
 	sigaddset(&set, SIGHUP);
 	sigaddset(&set, SIGTERM);
 	sigaddset(&set, SIGINT);

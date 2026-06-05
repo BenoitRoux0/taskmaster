@@ -41,6 +41,11 @@ namespace stackixx {
 	inline std::string serialize<int>(const int& value, [[maybe_unused]] size_t indent) {
 		return std::to_string(value);
 	}
+
+	template <>
+	inline std::string serialize<bool>(const bool& value, [[maybe_unused]] size_t indent) {
+		return value ? "true" : "false";
+	}
 } // namespace stackixx
 
 #include "serializers/serializeArray.tpp"

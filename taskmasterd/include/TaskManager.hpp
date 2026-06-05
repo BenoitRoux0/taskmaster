@@ -19,6 +19,7 @@ public:
 
 	void loadConf(const std::optional<std::string>& confFile);
 	void stop();
+	void handleDeath(pid_t pid);
 
 	static TaskManager& getInstance() { return _instance; }
 
