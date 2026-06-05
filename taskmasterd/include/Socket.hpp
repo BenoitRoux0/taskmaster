@@ -1,0 +1,27 @@
+#ifndef SOCKET_HPP
+#define SOCKET_HPP
+
+#include <unistd.h>
+#include <cstdint>
+#include <string>
+
+class Server;
+
+class Socket {
+public:
+	Socket() = delete;
+	Socket(Server& server, int sock);
+
+	virtual void handleEvent(uint32_t event) = 0;
+	virtual void send(const std::string& string) = 0;
+	virtual bool keepAlive() = 0;
+
+	int getFd();
+
+	virtual ~Socket();
+
+protected:
+	Server& _server;
+	int         _fd;
+};
+#endif // SOCKET_HPP
