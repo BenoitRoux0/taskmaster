@@ -1,8 +1,6 @@
 #include "HttpClient.hpp"
 
 #include <curl/curl.h>
-#include <stdexcept>
-#include <utility>
 
 static size_t writeCallback(char *ptr, size_t size, size_t nmemb, void *userdata) {
 	std::string* response = static_cast<std::string*>(userdata);

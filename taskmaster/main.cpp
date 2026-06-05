@@ -1,6 +1,6 @@
 #include <print>
 
-#include "Cli.hpp"
+#include "include/Cli.hpp"
 
 int main() {
 	std::println("Hello from client");

@@ -2,11 +2,10 @@
 #define TASKMASTER_HTTPCLIENT_HPP
 
 # include <string>
-# include <stdexcept>
 # include <curl/curl.h>
 
-# include "CommandParser.hpp"
-# include "ClientConfig.hpp"
+#include "CommandParser.hpp"
+#include "ClientConfig.hpp"
 
 class HttpClient {
 	public:
