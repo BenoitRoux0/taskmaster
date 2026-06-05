@@ -66,8 +66,21 @@ void TaskManager::run() {
 	pthread_sigmask(SIG_BLOCK, &set, nullptr);
 
 	server.registerSocket(std::make_shared<SignalSocket>(server, -1, &set));
-
+	startPrograms();
 	server.run();
+}
+
+void TaskManager::startPrograms() {
+	auto logger=Logger::getInstance("Task master", stdout);
+	for (auto [name,task]:tasksConfs) {
+		int pid = fork();
+		if (pid == 0){
+			execle("/bin/bash", "bash", "-c", task.cmd.c_str(), nullptr, environ);
+		}
+		else {
+			logger->write("Launching program: {}", name);
+		}
+	}
 }
 
 TaskManager::TaskManager() {}

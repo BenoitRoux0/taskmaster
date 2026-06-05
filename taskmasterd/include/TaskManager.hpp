@@ -20,6 +20,7 @@ public:
 	static TaskManager& getInstance() { return _instance; }
 
 	void run();
+	void startPrograms();
 
 private:
 	TaskManager();
