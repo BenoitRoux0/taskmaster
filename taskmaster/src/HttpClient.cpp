@@ -13,7 +13,8 @@ HttpClient::HttpClient() {
 	_curl = nullptr;
 }
 
-HttpClient::HttpClient(const ClientConfig& config) : _config(config), _curl(nullptr) {
+HttpClient::HttpClient(const ClientConfig& config) : _config(config){
+	_command.type = commandType::NOTHING;
 	_curl = curl_easy_init();
 	if (!_curl) {
 		throw std::runtime_error("Failed to initialize CURL");

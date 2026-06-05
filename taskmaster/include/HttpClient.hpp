@@ -18,9 +18,9 @@ class HttpClient {
 		std::string post(const std::string& url, const std::string& json);
 
 	private:
-		ClientConfig _config;
-		Command _command;
-		CURL*	_curl;
+		ClientConfig	_config;
+		Command			_command;
+		CURL*			_curl;
 
 	std::string buildUrl(const std::string& path) const;
 	void		resetCurl();
