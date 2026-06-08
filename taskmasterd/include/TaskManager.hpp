@@ -19,7 +19,7 @@ public:
 
 	void loadConf(const std::optional<std::string>& confFile);
 	void stop();
-	void handleDeath(pid_t pid);
+	void handleDeath(pid_t pid, int32_t status);
 
 	static TaskManager& getInstance() { return _instance; }
 
@@ -34,8 +34,10 @@ private:
 	Server      server;
 	std::string _conf;
 
+	HttpResponse _getTaskDetails(const HttpRequest& request);
+	HttpResponse _stopTask(const HttpRequest& request);
+
 	void confHttpServer(ServerConf conf);
 };
-
 
 #endif // TASK_MANAGER_HPP

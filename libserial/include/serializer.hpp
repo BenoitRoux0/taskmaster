@@ -46,6 +46,11 @@ namespace stackixx {
 	inline std::string serialize<bool>(const bool& value, [[maybe_unused]] size_t indent) {
 		return value ? "true" : "false";
 	}
+
+	template <>
+	inline std::string serialize<std::chrono::time_point<std::chrono::local_t, std::chrono::nanoseconds>>(const std::chrono::time_point<std::chrono::local_t, std::chrono::nanoseconds>& value, [[maybe_unused]] size_t indent) {
+		return std::format("{:%FT%T}", value);
+	}
 } // namespace stackixx
 
 #include "serializers/serializeArray.tpp"

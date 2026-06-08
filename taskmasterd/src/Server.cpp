@@ -80,7 +80,7 @@ void Server::run() {
 void Server::registerSocket(std::shared_ptr<Socket> sock) {
 	epoll_event event = { };
 
-	event.events = EPOLLIN | EPOLLRDHUP | EPOLLHUP;
+	event.events = EPOLLIN | EPOLLET | EPOLLRDHUP | EPOLLHUP;
 	event.data.fd = sock->getFd();
 
 	epoll_ctl(_epollFd, EPOLL_CTL_ADD, sock->getFd(), &event);
@@ -93,7 +93,7 @@ void Server::registerSocket(std::shared_ptr<Socket> sock) {
 void Server::sendResponse(const int socket, const HttpResponse& response) {
 	epoll_event event = { };
 
-	event.events = EPOLLIN | EPOLLRDHUP | EPOLLHUP | EPOLLOUT;
+	event.events = EPOLLIN | EPOLLET | EPOLLRDHUP | EPOLLHUP | EPOLLOUT;
 	event.data.fd = socket;
 
 	epoll_ctl(_epollFd, EPOLL_CTL_MOD, socket, &event);
@@ -104,7 +104,7 @@ void Server::sendResponse(const int socket, const HttpResponse& response) {
 void Server::endSending(const int socket) {
 	epoll_event event = { };
 
-	event.events = EPOLLIN | EPOLLRDHUP | EPOLLHUP;
+	event.events = EPOLLIN | EPOLLET | EPOLLRDHUP | EPOLLHUP;
 	event.data.fd = socket;
 
 	epoll_ctl(_epollFd, EPOLL_CTL_MOD, socket, &event);

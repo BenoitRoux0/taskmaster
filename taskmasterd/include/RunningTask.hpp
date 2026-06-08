@@ -1,9 +1,9 @@
 #ifndef RUNNING_TASK_HPP
 #define RUNNING_TASK_HPP
 #include <chrono>
-#include <sys/types.h>
 
 enum deathStatus {
+	starting,
 	running,
 	expected,
 	unexpected,
@@ -11,16 +11,22 @@ enum deathStatus {
 
 class RunningTask {
 public:
-	RunningTask() = default;
+	RunningTask();
 
 	RunningTask(pid_t pid);
 
-	pid_t                                              _pid = 0;
-	int                                                death{running};
+	std::chrono::time_point<std::chrono::local_t, std::chrono::nanoseconds> getStart() const;
+	std::chrono::time_point<std::chrono::local_t, std::chrono::nanoseconds> getEnd() const;
 
-	std::chrono::time_point<std::chrono::steady_clock> getStart();
-private:
-	std::chrono::time_point<std::chrono::steady_clock> start = std::chrono::steady_clock::now();
+	void dead();
+
+// private:
+	pid_t   _pid = 0;
+	int     status{running};
+	int32_t procStatus;
+
+	std::chrono::time_point<std::chrono::local_t, std::chrono::nanoseconds> start;
+	std::chrono::time_point<std::chrono::local_t, std::chrono::nanoseconds> end;
 };
 
 #endif // RUNNING_TASK_HPP

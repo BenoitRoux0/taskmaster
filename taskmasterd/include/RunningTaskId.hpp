@@ -1,15 +1,14 @@
 #ifndef RUNNING_TASKID_HPP
 #define RUNNING_TASKID_HPP
+
 #include <format>
 #include <string>
-
-#include "common.hpp"
 
 class RunningTaskId {
 public:
 	RunningTaskId(std::string name, int index);
 
-	int operator<=>(const RunningTaskId&) const;
+	int  operator<=>(const RunningTaskId&) const;
 
 	std::string _name;
 	int         _index;

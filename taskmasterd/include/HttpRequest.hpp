@@ -1,21 +1,26 @@
 #ifndef HTTP_REQUEST_HPP
 #define HTTP_REQUEST_HPP
+
 #include <map>
+#include <optional>
 #include <string>
+#include <vector>
 
 class HttpRequest {
-	std::string                        _url;
-	std::string                        _protocol;
-	std::string                        _version;
-	std::string                        _method;
-	std::map<std::string, std::string> _headers;
-	std::string                        _body;
+	std::string                                     _rawUrl;
+	mutable std::optional<std::vector<std::string>> _url;
+	std::string                                     _protocol;
+	std::string                                     _version;
+	std::string                                     _method;
+	std::map<std::string, std::string>              _headers;
+	std::string                                     _body;
 
 public:
 	HttpRequest(std::string url, std::string protocol, std::string version, std::string method,
 	            const std::map<std::string, std::string>& headers, std::string body);
 
-	const std::string&                        getUrl() const;
+	const std::string&                        getRawUrl() const;
+	const std::vector<std::string>&           getUrl() const;
 	const std::string&                        getProtocol() const;
 	const std::string&                        getVersion() const;
 	const std::string&                        getMethod() const;
