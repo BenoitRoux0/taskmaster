@@ -4,7 +4,7 @@
 
 Socket::Socket(Server& server, const int sock): _server(server), _fd(sock) {}
 
-int Socket::getFd() {
+int Socket::getFd() const {
 	return _fd;
 }
 

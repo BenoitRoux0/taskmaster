@@ -14,3 +14,10 @@ cmd = "cat /home/tgellon/.zshrc"
 [programs.cat.env]
 HELLO = "World"
 TEST = "Mars"
+
+[programs."sleeper"]
+cmd = "sleep 30"
+
+[programs."sleeper_failed"]
+cmd = "sleep 30"
+start_time = 35

@@ -17,7 +17,6 @@ class Server {
 	int                                      _accept_socket = -1;
 	std::optional<ServerConf>                _conf;
 	std::map<int, std::shared_ptr<Socket>>   _sockets;
-	epoll_event*                             _events;
 	std::function<HttpResponse(HttpRequest)> _onHttpRequest;
 	std::function<void(signalfd_siginfo)>    _onChildRequest;
 	std::vector<int>                         _toRemove;

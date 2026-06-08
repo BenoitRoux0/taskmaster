@@ -11,7 +11,7 @@
 #include "HttpResponse.hpp"
 #include "HttpSessionSocket.hpp"
 
-Server::Server(): _events(nullptr) {
+Server::Server() {
 	_epollFd = epoll_create(1024);
 }
 
@@ -58,16 +58,15 @@ void Server::loadConf(ServerConf conf) {
 }
 
 void Server::run() {
-	for (;!_stop;) {
-		_events = new epoll_event[_sockets.size()];
+	epoll_event events[1024];
 
-		const int events_count = epoll_wait(_epollFd, _events, _sockets.size(), -1);
+	for (;!_stop;) {
+
+		const int events_count = epoll_wait(_epollFd, events, _sockets.size(), -1);
 
 		for (int i = 0; i < events_count; ++i) {
-			_sockets[_events[i].data.fd]->handleEvent(_events[i].events);
+			_sockets[events[i].data.fd]->handleEvent(events[i].events);
 		}
-
-		delete[] _events;
 
 		for (auto toRemove: _toRemove) {
 			_sockets.erase(toRemove);
@@ -81,7 +80,7 @@ void Server::run() {
 void Server::registerSocket(std::shared_ptr<Socket> sock) {
 	epoll_event event = { };
 
-	event.events = EPOLLIN | EPOLLRDHUP | EPOLLHUP;
+	event.events = EPOLLIN | EPOLLET | EPOLLRDHUP | EPOLLHUP;
 	event.data.fd = sock->getFd();
 
 	epoll_ctl(_epollFd, EPOLL_CTL_ADD, sock->getFd(), &event);
@@ -94,7 +93,7 @@ void Server::registerSocket(std::shared_ptr<Socket> sock) {
 void Server::sendResponse(const int socket, const HttpResponse& response) {
 	epoll_event event = { };
 
-	event.events = EPOLLIN | EPOLLRDHUP | EPOLLHUP | EPOLLOUT;
+	event.events = EPOLLIN | EPOLLET | EPOLLRDHUP | EPOLLHUP | EPOLLOUT;
 	event.data.fd = socket;
 
 	epoll_ctl(_epollFd, EPOLL_CTL_MOD, socket, &event);
@@ -105,7 +104,7 @@ void Server::sendResponse(const int socket, const HttpResponse& response) {
 void Server::endSending(const int socket) {
 	epoll_event event = { };
 
-	event.events = EPOLLIN | EPOLLRDHUP | EPOLLHUP;
+	event.events = EPOLLIN | EPOLLET | EPOLLRDHUP | EPOLLHUP;
 	event.data.fd = socket;
 
 	epoll_ctl(_epollFd, EPOLL_CTL_MOD, socket, &event);
