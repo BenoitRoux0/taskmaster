@@ -1,6 +1,10 @@
 #include "TaskManager.hpp"
-
 #include <csignal>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <vector>
+#include <cstring>
 #include <print>
 #include <ranges>
 
@@ -70,20 +74,85 @@ void TaskManager::run() {
 	server.run();
 }
 
-void TaskManager::startPrograms() {
-	auto logger=Logger::getInstance("Task master", stdout);
-	for (auto [name,task]:tasksConfs) {
-		int pid = fork();
-		if (pid == 0){
-			execle("/bin/bash", "bash", "-c", task.cmd.c_str(), nullptr, environ);
+static void configureTask(TaskConf task, Logger* logger) {
+	if (task.umask.has_value()) {
+		umask(task.umask.value());
+	}
+
+	if (task.workdir.has_value()) {
+		if (chdir(task.workdir.value().c_str()) == -1) {
+			perror(("chdir to " + task.workdir.value()).c_str());
+			exit(1);
 		}
-		else {
-			auto id = RunningTaskId(name, pid);
-			runningTasks[id] = RunningTask(pid);
-			logger->write("Launching program: {}", name);
+		logger->write("chdir to {}", task.workdir.value());
+	}
+
+	if (task.env.has_value()) {
+		for (const auto& [key, value] : task.env.value()) {
+			setenv(key.c_str(), value.c_str(), 1);
+			logger->write("setenv {}={}", key, value);
+		}
+	}
+
+	if (task.std_in.has_value()) {
+		int fd = open(task.std_in.value().c_str(), O_RDONLY);
+		if (fd == -1) {
+			perror(("open stdin for " + task.std_in.value()).c_str());
+			exit(1);
+		}
+		dup2(fd, STDIN_FILENO);
+		close(fd);
+	}
+
+	if (task.std_out.has_value()) {
+		int fd = open(task.std_out.value().c_str(), O_WRONLY | O_CREAT | O_APPEND, 0644);
+		if (fd == -1) {
+			perror(("open stdout for " + task.std_out.value()).c_str());
+			exit(1);
+		}
+		dup2(fd, STDOUT_FILENO);
+		close(fd);
+	}
+}
+
+void TaskManager::startPrograms() {
+	auto logger = Logger::getInstance("Task master", stdout);
+	for (auto& [name, task] : tasksConfs) {
+		if (task.start_at_launch.has_value() && !task.start_at_launch.value()) {
+			continue;
+		}
+
+		int num_procs = task.getNumProcs();
+		for (int i = 0; i < num_procs; ++i) {
+			pid_t pid = fork();
+			if (pid == 0) {
+				logger->write("Child process of program: {} (instance {})", name, i);
+				configureTask(task, logger);
+				std::string shell = task.getShell();
+
+				execle(shell.c_str(), shell.c_str(), "-c", task.cmd.c_str(), nullptr, environ);
+				
+				perror("execle");
+				exit(1);
+			} else if (pid > 0) {
+				std::string programName;
+				if (num_procs > 1) {
+					programName = name + "_" + std::to_string(i+1);
+				}
+				else {
+					programName = name;
+				}
+				auto id = RunningTaskId(programName, i);
+				runningTasks[id] = RunningTask(pid);
+				logger->write("Launching program: {}", programName);
+			} else {
+				perror("fork");
+			}
 		}
 	}
 }
+
+
 
 TaskManager::TaskManager() {}
 
