@@ -74,7 +74,7 @@ void TaskManager::run() {
 	server.run();
 }
 
-static void configureTask(TaskConf task, Logger* logger) {
+static void configureTask(TaskConf task) {
 	if (task.umask.has_value()) {
 		umask(task.umask.value());
 	}
@@ -84,13 +84,11 @@ static void configureTask(TaskConf task, Logger* logger) {
 			perror(("chdir to " + task.workdir.value()).c_str());
 			exit(1);
 		}
-		logger->write("chdir to {}", task.workdir.value());
 	}
 
 	if (task.env.has_value()) {
 		for (const auto& [key, value] : task.env.value()) {
 			setenv(key.c_str(), value.c_str(), 1);
-			logger->write("setenv {}={}", key, value);
 		}
 	}
 
@@ -113,12 +111,22 @@ static void configureTask(TaskConf task, Logger* logger) {
 		dup2(fd, STDOUT_FILENO);
 		close(fd);
 	}
+
+	if (task.std_err.has_value()) {
+		int fd = open(task.std_err.value().c_str(), O_WRONLY | O_CREAT | O_APPEND, 0644);
+		if (fd == -1) {
+			perror(("open stderr for " + task.std_err.value()).c_str());
+			exit(1);
+		}
+		dup2(fd, STDERR_FILENO);
+		close(fd);
+	}
 }
 
 void TaskManager::startPrograms() {
 	auto logger = Logger::getInstance("Task master", stdout);
 	for (auto& [name, task] : tasksConfs) {
-		if (task.start_at_launch.has_value() && !task.start_at_launch.value()) {
+		if (!task.start_at_launch.value()) {
 			continue;
 		}
 
@@ -126,8 +134,7 @@ void TaskManager::startPrograms() {
 		for (int i = 0; i < num_procs; ++i) {
 			pid_t pid = fork();
 			if (pid == 0) {
-				logger->write("Child process of program: {} (instance {})", name, i);
-				configureTask(task, logger);
+				configureTask(task);
 				std::string shell = task.getShell();
 
 				execle(shell.c_str(), shell.c_str(), "-c", task.cmd.c_str(), nullptr, environ);
@@ -135,24 +142,15 @@ void TaskManager::startPrograms() {
 				perror("execle");
 				exit(1);
 			} else if (pid > 0) {
-				std::string programName;
-				if (num_procs > 1) {
-					programName = name + "_" + std::to_string(i+1);
-				}
-				else {
-					programName = name;
-				}
-				auto id = RunningTaskId(programName, i);
+				auto id = RunningTaskId(name, i);
 				runningTasks[id] = RunningTask(pid);
-				logger->write("Launching program: {}", programName);
+				logger->write("Launching program: {}_{}", name, i);
 			} else {
 				perror("fork");
 			}
 		}
 	}
 }
-
-
 
 TaskManager::TaskManager() {}
 

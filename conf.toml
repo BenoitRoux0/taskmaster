@@ -10,8 +10,9 @@ std_out = "/tmp/taskmaster_ls.log"
 env = { HELLO = "World", TEST = "Mars" }
 
 [programs.cat]
-cmd = "cat /home/tgellon/.zshrc"
-start_at_launch = false
+cmd = "cat /home/tgellon/.zshrcssss"
+start_at_launch = true
+std_err = "/tmp/taskmaster_cat_err.log"
 env = { HELLO = "World", TEST = "Mars" }
 
 [programs.echo]

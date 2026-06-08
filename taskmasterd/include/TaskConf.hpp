@@ -17,6 +17,7 @@ struct TaskConf {
 	std::optional<int>                                stop_time;
 	std::optional<std::string>                        std_in;
 	std::optional<std::string>                        std_out;
+	std::optional<std::string>                        std_err;
 	std::optional<std::string>                        workdir;
 	std::optional<mode_t>                             umask;
 	std::optional<std::string>                        shell;
@@ -33,6 +34,7 @@ struct TaskConf {
 	int					getStopTime() const { return stop_time.value_or(10);};
 	std::string			getStdIn() const { return std_in.value_or("");};
 	std::string			getStdOut() const { return std_out.value_or("");};
+	std::string			getStdErr() const { return std_err.value_or("");};
 	std::string			getWorkDir() const { return workdir.value_or("");};
 	mode_t				getUmask() const { return umask.value_or(022);};
 	std::string			getShell() const { return shell.value_or("/bin/bash");};
