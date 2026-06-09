@@ -12,3 +12,7 @@ int RunningTaskId::operator<=>(const RunningTaskId& rhs) const {
 
 	return strcmp(_name.c_str(), rhs._name.c_str());
 }
+
+bool RunningTaskId::operator==(const RunningTaskId& rhs) const {
+	return _name == rhs._name && _index == rhs._index;
+}

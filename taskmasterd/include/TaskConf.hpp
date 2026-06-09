@@ -26,6 +26,11 @@ struct TaskConf {
 	}
 
 	std::optional<int>                                stop_time;
+
+	[[nodiscard]] std::chrono::milliseconds getStopTime() const {
+		return std::chrono::milliseconds(stop_time.value_or(30)) * 1000;
+	}
+
 	std::optional<std::string>                        std_in;
 	std::optional<std::string>                        std_out;
 	std::optional<std::string>                        workdir;

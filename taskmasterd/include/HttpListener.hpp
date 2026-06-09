@@ -6,9 +6,9 @@
 
 #include "Socket.hpp"
 
-class AcceptSocket: public Socket {
+class HttpListener: public Socket {
 public:
-	AcceptSocket(Server& server, int sock);
+	HttpListener(Server& server, int sock);
 
 	void handleEvent(uint32_t event) override;
 

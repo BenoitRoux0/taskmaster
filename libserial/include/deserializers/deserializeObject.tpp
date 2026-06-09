@@ -20,7 +20,7 @@ namespace stackixx {
 		ptr = new_ptr;
 
 		static constexpr auto members =
-			std::define_static_array(std::meta::nonstatic_data_members_of(^^T, std::meta::access_context::unchecked()));
+			std::define_static_array(std::meta::nonstatic_data_members_of(^^T, std::meta::access_context::current()));
 
 		template for (constexpr auto member : members) {
 			for (auto [name, rawValue] : raw_values) {

@@ -64,6 +64,11 @@ void TaskManager::handleDeath(pid_t pid, int32_t status) {
 					task.status = unexpected;
 				}
 			}
+
+			task._pid = -1;
+			std::erase_if(stoppingTasks, [name](const auto& current) {
+				return current == name;
+			});
 		}
 	}
 }
@@ -118,6 +123,14 @@ void TaskManager::run() {
 			case SIGINT:
 				getInstance().stop();
 				break;
+		}
+	});
+
+	server.onWakeUp([&](std::chrono::milliseconds delta) {
+		for (auto taskId: stoppingTasks) {
+			if (runningTasks[taskId].decreaseStopTime(delta)) {
+				kill(runningTasks[taskId]._pid, SIGKILL);
+			}
 		}
 	});
 
@@ -190,9 +203,11 @@ HttpResponse TaskManager::_stopTask(const HttpRequest& request) {
 
 	auto name = request.getUrl()[1];
 
-	for (const auto& [id, task]: runningTasks) {
+	for (auto& [id, task]: runningTasks) {
 		if (id._name == name && (task.status == running || task.status == starting)) {
 			auto sig = tasksConfs[id._name].getStopSig();
+			task.setStopTime(tasksConfs[id._name].getStopTime());
+			stoppingTasks.insert(id);
 			kill(task._pid, sig);
 		}
 	}

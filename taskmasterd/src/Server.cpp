@@ -7,7 +7,7 @@
 #include <ranges>
 #include <utility>
 
-#include "AcceptSocket.hpp"
+#include "HttpListener.hpp"
 #include "HttpResponse.hpp"
 #include "HttpSessionSocket.hpp"
 
@@ -45,12 +45,13 @@ void Server::loadConf(ServerConf conf) {
 		return;
 	}
 
-	_sockets.insert(std::make_pair(_accept_socket, new AcceptSocket(*this, _accept_socket)));
+	auto listener = new HttpListener(*this, _accept_socket);
+	_sockets.insert(std::make_pair(_accept_socket, listener));
 
 	epoll_event event = { };
 
 	event.events = EPOLLIN;
-	event.data.fd = _accept_socket;
+	event.data.ptr = listener;
 
 	epoll_ctl(_epollFd, EPOLL_CTL_ADD, _accept_socket, &event);
 
@@ -60,12 +61,13 @@ void Server::loadConf(ServerConf conf) {
 void Server::run() {
 	epoll_event events[1024];
 
-	for (;!_stop;) {
-
-		const int events_count = epoll_wait(_epollFd, events, _sockets.size(), -1);
+	while (!_stop) {
+		auto start = std::chrono::steady_clock::now();
+		const int events_count = epoll_wait(_epollFd, events, _sockets.size(), 1000);
 
 		for (int i = 0; i < events_count; ++i) {
-			_sockets[events[i].data.fd]->handleEvent(events[i].events);
+			auto* socket = static_cast<Socket*>(events[i].data.ptr);
+			socket->handleEvent(events[i].events);
 		}
 
 		for (auto toRemove: _toRemove) {
@@ -74,6 +76,10 @@ void Server::run() {
 		}
 
 		_toRemove.clear();
+
+		auto delta = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
+
+		_onWakeUp(delta);
 	}
 }
 
@@ -81,7 +87,7 @@ void Server::registerSocket(std::shared_ptr<Socket> sock) {
 	epoll_event event = { };
 
 	event.events = EPOLLIN | EPOLLET | EPOLLRDHUP | EPOLLHUP;
-	event.data.fd = sock->getFd();
+	event.data.ptr = sock.get();
 
 	epoll_ctl(_epollFd, EPOLL_CTL_ADD, sock->getFd(), &event);
 
@@ -94,7 +100,7 @@ void Server::sendResponse(const int socket, const HttpResponse& response) {
 	epoll_event event = { };
 
 	event.events = EPOLLIN | EPOLLET | EPOLLRDHUP | EPOLLHUP | EPOLLOUT;
-	event.data.fd = socket;
+	event.data.ptr = _sockets[socket].get();
 
 	epoll_ctl(_epollFd, EPOLL_CTL_MOD, socket, &event);
 
@@ -105,7 +111,7 @@ void Server::endSending(const int socket) {
 	epoll_event event = { };
 
 	event.events = EPOLLIN | EPOLLET | EPOLLRDHUP | EPOLLHUP;
-	event.data.fd = socket;
+	event.data.ptr = _sockets[socket].get();
 
 	epoll_ctl(_epollFd, EPOLL_CTL_MOD, socket, &event);
 
@@ -129,6 +135,10 @@ void Server::onHttpRequest(std::function<HttpResponse(HttpRequest)> callback) {
 
 void Server::onChildRequest(std::function<void(signalfd_siginfo)> callback) {
 	_onChildRequest = std::move(callback);
+}
+
+void Server::onWakeUp(std::function<void(std::chrono::milliseconds)> callback) {
+	_onWakeUp = std::move(callback);
 }
 
 void Server::stop() {

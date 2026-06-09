@@ -13,14 +13,15 @@
 class Socket;
 
 class Server {
-	int                                      _epollFd;
-	int                                      _accept_socket = -1;
-	std::optional<ServerConf>                _conf;
-	std::map<int, std::shared_ptr<Socket>>   _sockets;
-	std::function<HttpResponse(HttpRequest)> _onHttpRequest;
-	std::function<void(signalfd_siginfo)>    _onChildRequest;
-	std::vector<int>                         _toRemove;
-	bool                                     _stop{false};
+	int                                            _epollFd;
+	int                                            _accept_socket = -1;
+	std::optional<ServerConf>                      _conf;
+	std::map<int, std::shared_ptr<Socket>>         _sockets;
+	std::function<HttpResponse(HttpRequest)>       _onHttpRequest;
+	std::function<void(signalfd_siginfo)>          _onChildRequest;
+	std::function<void(std::chrono::milliseconds)> _onWakeUp;
+	std::vector<int>                               _toRemove;
+	bool                                           _stop{false};
 
 public:
 	Server();
@@ -39,6 +40,8 @@ public:
 
 	void onHttpRequest(std::function<HttpResponse(HttpRequest)> callback);
 	void onChildRequest(std::function<void(signalfd_siginfo)> callback);
+	void onWakeUp(std::function<void(std::chrono::milliseconds)> callback);
+
 	void stop();
 	void remove(int socket);
 };

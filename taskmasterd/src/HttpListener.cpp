@@ -1,10 +1,10 @@
-#include "AcceptSocket.hpp"
+#include "HttpListener.hpp"
 
 #include "Server.hpp"
 
-AcceptSocket::AcceptSocket(Server& server, int sock): Socket(server, sock) {}
+HttpListener::HttpListener(Server& server, int sock): Socket(server, sock) {}
 
-void AcceptSocket::handleEvent(uint32_t event) {
+void HttpListener::handleEvent(uint32_t event) {
 	if (!(event & EPOLLIN))
 		return;
 
@@ -16,8 +16,8 @@ void AcceptSocket::handleEvent(uint32_t event) {
 	_server.registerSocket(std::make_shared<HttpSessionSocket>(_server, socket));
 }
 
-void AcceptSocket::send([[maybe_unused]] const std::string& string) { }
+void HttpListener::send([[maybe_unused]] const std::string& string) { }
 
-bool AcceptSocket::keepAlive() {
+bool HttpListener::keepAlive() {
 	return true;
 }

@@ -5,6 +5,8 @@
 enum deathStatus {
 	starting,
 	running,
+	stopping,
+	restarting,
 	expected,
 	unexpected,
 };
@@ -20,13 +22,19 @@ public:
 
 	void dead();
 
-// private:
-	pid_t   _pid = 0;
+	// private:
+	pid_t   _pid{-1};
 	int     status{running};
-	int32_t procStatus;
+	int32_t procStatus{0};
 
 	std::chrono::time_point<std::chrono::local_t, std::chrono::nanoseconds> start;
 	std::chrono::time_point<std::chrono::local_t, std::chrono::nanoseconds> end;
+
+	void setStopTime(std::chrono::milliseconds ms);
+	bool decreaseStopTime(std::chrono::milliseconds ms);
+
+private:
+	std::chrono::milliseconds remainingStopTime{-1};
 };
 
 #endif // RUNNING_TASK_HPP

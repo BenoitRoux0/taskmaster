@@ -14,8 +14,8 @@ class TaskManager {
 	static TaskManager _instance;
 
 public:
-	std::map<std::string, TaskConf>      tasksConfs;
-	std::map<RunningTaskId, RunningTask> runningTasks;
+	std::map<std::string, TaskConf>      tasksConfs{};
+	std::map<RunningTaskId, RunningTask> runningTasks{};
 
 	void loadConf(const std::optional<std::string>& confFile);
 	void stop();
@@ -36,6 +36,8 @@ private:
 
 	HttpResponse _getTaskDetails(const HttpRequest& request);
 	HttpResponse _stopTask(const HttpRequest& request);
+
+	std::set<RunningTaskId> stoppingTasks;
 
 	void confHttpServer(ServerConf conf);
 };
