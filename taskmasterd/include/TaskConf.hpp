@@ -27,7 +27,7 @@ struct TaskConf {
 
 	const std::string	getCmd() const { return cmd; };
 	int					getNumProcs() const { return num_procs.value_or(1);};
-	bool				getStartAtLaunch() const { return start_at_launch.value_or(false);};
+	bool				getStartAtLaunch() const { return start_at_launch.value_or(true);};
 	std::string			getRestart() const { return restart.value_or("unexpected");};
 	std::vector<int>	getExitCodes() const { return exit_codes.value_or({0});};
 	int					getStartTime() const { return start_time.value_or(1);};
