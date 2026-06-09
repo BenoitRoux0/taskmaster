@@ -24,6 +24,7 @@ public:
 
 	void run();
 	void startPrograms();
+	void startProgram(const std::string& name, int index);
 
 private:
 	TaskManager();
@@ -34,6 +35,8 @@ private:
 	std::string _conf;
 
 	void confHttpServer(ServerConf conf);
+
+	void startTask(const std::string& name, int index, const TaskConf& taskConf);
 };
 
 

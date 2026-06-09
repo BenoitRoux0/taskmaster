@@ -71,6 +71,7 @@ void TaskManager::run() {
 
 	server.registerSocket(std::make_shared<SignalSocket>(server, -1, &set));
 	startPrograms();
+
 	server.run();
 }
 
@@ -124,31 +125,51 @@ static void configureTask(TaskConf task) {
 }
 
 void TaskManager::startPrograms() {
-	auto logger = Logger::getInstance("Task master", stdout);
 	for (auto& [name, task] : tasksConfs) {
-		if (!task.start_at_launch.value()) {
+		if (!task.getStartAtLaunch()) {
 			continue;
 		}
 
 		int num_procs = task.getNumProcs();
 		for (int i = 0; i < num_procs; ++i) {
-			pid_t pid = fork();
-			if (pid == 0) {
-				configureTask(task);
-				std::string shell = task.getShell();
-
-				execle(shell.c_str(), shell.c_str(), "-c", task.cmd.c_str(), nullptr, environ);
-				
-				perror("execle");
-				exit(1);
-			} else if (pid > 0) {
-				auto id = RunningTaskId(name, i);
-				runningTasks[id] = RunningTask(pid);
-				logger->write("Launching program: {}_{}", name, i);
-			} else {
-				perror("fork");
-			}
+			startProgram(name, i);
 		}
+	}
+}
+
+void TaskManager::startProgram(const std::string& name, int index) {
+	auto logger = Logger::getInstance("Task master", stdout);
+
+	RunningTaskId id(name, index);
+	if (runningTasks.find(id) != runningTasks.end()) {
+		if (runningTasks[id].status == running || runningTasks[id].status == starting) {
+			logger->write("Program already running: {}", name);
+			return;
+		}
+	}
+
+	startTask(name, index, tasksConfs[name]);
+}
+
+void TaskManager::startTask(const std::string& name, int index, const TaskConf& taskConf) {
+	auto logger = Logger::getInstance("Task master", stdout);
+	RunningTaskId id(name, index);
+
+	pid_t pid = fork();
+	if (pid == 0) {
+		configureTask(taskConf);
+		std::string shell = taskConf.getShell();
+
+		execle(shell.c_str(), shell.c_str(), "-c", taskConf.cmd.c_str(), nullptr, environ);
+
+		perror("execle");
+		exit(1);
+	} else if (pid > 0) {
+		runningTasks[id] = RunningTask(pid);
+		runningTasks[id].status = starting;
+		logger->write("Launching program: {}_{})", name, index);
+	} else {
+		perror("fork");
 	}
 }
 

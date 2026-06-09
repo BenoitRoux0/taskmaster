@@ -39,7 +39,7 @@ add_executable(taskmasterd
         src/RunningTaskId.cpp
 )
 
-target_compile_options(taskmasterd PUBLIC -Wall -Wextra -Werror)
+target_compile_options(taskmasterd PUBLIC)
 
 target_include_directories(taskmasterd PRIVATE include)
 
