@@ -37,6 +37,11 @@ private:
 	void confHttpServer(ServerConf conf);
 
 	void startTask(const std::string& name, int index, const TaskConf& taskConf);
+
+	HttpResponse _getTaskDetails(const HttpRequest& request);
+	HttpResponse _stopTask(const HttpRequest& request);
+	HttpResponse _startTask(const HttpRequest& request);
+
 };
 
 
