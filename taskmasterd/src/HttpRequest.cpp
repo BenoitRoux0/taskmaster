@@ -8,9 +8,7 @@ HttpRequest::HttpRequest(std::string url, std::string protocol, std::string vers
                          const std::map<std::string, std::string>& headers,
                          std::string body): _rawUrl(std::move(url)), _protocol(std::move(protocol)),
                                             _version(std::move(version)), _method(std::move(method)), _headers(headers),
-                                            _body(std::move(body)) {
-
-}
+                                            _body(std::move(body)) {}
 
 const std::string& HttpRequest::getRawUrl() const {
 	return _rawUrl;

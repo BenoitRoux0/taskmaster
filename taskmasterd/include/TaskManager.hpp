@@ -25,6 +25,7 @@ public:
 
 	void run();
 	void startPrograms();
+	void startProgram(const std::string& name, int index);
 
 private:
 	TaskManager();
@@ -36,8 +37,12 @@ private:
 
 	HttpResponse _getTaskDetails(const HttpRequest& request);
 	HttpResponse _stopTask(const HttpRequest& request);
+	HttpResponse _startTask(const HttpRequest& request);
 
 	void confHttpServer(ServerConf conf);
+
+	void startTask(const std::string& name, int index, const TaskConf& taskConf);
+
 };
 
 #endif // TASK_MANAGER_HPP
