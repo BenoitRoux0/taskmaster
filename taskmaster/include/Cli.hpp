@@ -23,6 +23,8 @@ class Cli {
     private:
         std::optional<int> handleCommand(const Command& cmd);
 
+		std::pair<>
+
         CommandParser   _parser;
         HttpClient      _client;
 };

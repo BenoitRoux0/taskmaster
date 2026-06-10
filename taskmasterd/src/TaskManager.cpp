@@ -12,6 +12,7 @@
 #include "Logger.hpp"
 #include "serializer.hpp"
 #include "SignalSocket.hpp"
+#include "TaskData.hpp"
 #include <sys/wait.h>
 
 void TaskManager::loadConf(const std::optional<std::string>& confFile) {
@@ -270,12 +271,18 @@ TaskManager::~TaskManager() = default;
 
 HttpResponse TaskManager::_getTaskDetails(const HttpRequest& request) {
 	if (request.getUrl().size() == 2) {
-		auto                     name = request.getUrl()[1];
-		std::vector<RunningTask> tasks{};
+		auto name = request.getUrl()[1];
+		std::vector<TaskData> tasks{};
 
 		for (const auto& [id, task]: _runningTasks) {
 			if (id._name == name)
-				tasks.push_back(task);
+				tasks.push_back({
+					id._name,
+					id._index,
+					task.status,
+					task.procStatus,
+					_tasksConfs[id._name].cmd
+				});
 		}
 
 		return {stackixx::serialize(tasks)};

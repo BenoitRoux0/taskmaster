@@ -11,7 +11,11 @@ cmd = "cat $HOME/.zshrc"
 start_at_launch = true
 std_out = "/tmp/taskmaster_cat.log"
 std_err = "/tmp/taskmaster_cat_err.log"
-env = { HELLO = "World", TEST = "Mars" }
+#env = { HELLO = "World", TEST = "Mars" }
+
+[programs.cat.env]
+HELLO = "World"
+TEST = "Mars"
 
 [programs.echo]
 cmd = "echo $HELLO"
