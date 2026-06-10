@@ -43,19 +43,19 @@ std::optional<int> Cli::handleCommand(const Command& cmd) {
         case commandType::STATUS:
             if (!cmd.args.empty()) {
                 for (const std::string& arg : cmd.args) {
-                    response = _client.post("/status", "{\"name\":\"" + arg + "\"}");
+                    response = _client.get("task", arg);
                     std::cout << response << std::endl;
                 }
             }
             else {
-                response = _client.get("/status");
+                response = _client.get("tasks", "");
                 std::cout << response << std::endl;
             }
             break;
         case commandType::START:
             if (!cmd.args.empty()) {
                 for (const std::string& arg : cmd.args) {
-                    response = _client.post("/start", "{\"id\":\"" + arg + "\"}");
+                    response = _client.post("start", arg);
                     std::cout << response << std::endl;
                 }
             }
@@ -66,7 +66,7 @@ std::optional<int> Cli::handleCommand(const Command& cmd) {
         case commandType::STOP:
             if (!cmd.args.empty()) {
                 for (const std::string& arg : cmd.args) {
-                    response = _client.post("/stop", "{\"id\":\"" + arg + "\"}");
+                    response = _client.post("stop",arg );
                     std::cout << response << std::endl;
                 }
             }
@@ -77,7 +77,7 @@ std::optional<int> Cli::handleCommand(const Command& cmd) {
         case commandType::RESTART:
             if (!cmd.args.empty()) {
                 for (const std::string& arg : cmd.args) {
-                    response = _client.post("/restart", "{\"id\":\"" + arg + "\"}");
+                    response = _client.post("restart", "{\"id\":\"" + arg + "\"}");
                     std::cout << response << std::endl;
                 }
             }
@@ -87,7 +87,7 @@ std::optional<int> Cli::handleCommand(const Command& cmd) {
             break;
         case commandType::RELOAD:
             if (cmd.args.empty()) {
-                response = _client.post("/reload", "");
+                response = _client.post("reload", "");
                 std::cout << response << std::endl;
             }
             else {

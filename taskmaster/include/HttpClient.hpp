@@ -1,6 +1,7 @@
 #ifndef TASKMASTER_HTTPCLIENT_HPP
 #define TASKMASTER_HTTPCLIENT_HPP
 
+#include <optional>
 # include <string>
 # include <curl/curl.h>
 
@@ -14,15 +15,15 @@ class HttpClient {
 		HttpClient(const ClientConfig& config);
 		~HttpClient();
 
-		std::string get(const std::string& url);
-		std::string post(const std::string& url, const std::string& json);
+		std::string get(const std::string& url, const std::string& arg);
+		std::string post(const std::string& url, const std::string& arg);
 
 	private:
 		ClientConfig	_config;
 		Command			_command;
 		CURL*			_curl;
 
-	std::string buildUrl(const std::string& path) const;
+	std::string buildUrl(const std::string& path, const std::string arg) const;
 	void		resetCurl();
 };
 

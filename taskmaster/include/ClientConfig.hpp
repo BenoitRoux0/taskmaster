@@ -9,7 +9,7 @@ struct ClientConfig {
     uint16_t    port {12345};
 
     std::string getBaseUrl() const {
-        return "http://" + host + ":" + std::to_string(port);
+        return "http://" + host + ":" + std::to_string(port) + "/";
     }
 };
 

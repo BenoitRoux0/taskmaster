@@ -268,7 +268,6 @@ TaskManager::TaskManager() = default;
 
 TaskManager::~TaskManager() = default;
 
-
 HttpResponse TaskManager::_getTaskDetails(const HttpRequest& request) {
 	if (request.getUrl().size() == 2) {
 		auto                     name = request.getUrl()[1];
@@ -317,7 +316,6 @@ HttpResponse TaskManager::_stopTask(const HttpRequest& request) {
 
 	return {""};
 }
-
 
 HttpResponse TaskManager::_startTask(const HttpRequest& request) {
 	const auto& url = request.getUrl();
