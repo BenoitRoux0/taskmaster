@@ -1,16 +1,18 @@
 #ifndef TASK_CONF_HPP
 #define TASK_CONF_HPP
+#include <csignal>
 #include <map>
 #include <optional>
+#include <set>
 #include <toml.hpp>
 #include <csignal>
 
 struct TaskConf {
-	std::string                                       cmd;
-	std::optional<int>                                num_procs;
-	std::optional<bool>                               start_at_launch;
-	std::optional<std::string>                        restart;
-	std::optional<std::vector<int>>                   exit_codes;
+	std::string                     cmd;
+	std::optional<int>              num_procs;
+	std::optional<bool>             start_at_launch;
+	std::optional<std::string>      restart;
+	std::optional<std::vector<int>> exit_codes;
 	std::optional<int>                                start_time;
 	std::optional<int>                                retries;
 	std::optional<int>                                stop_sig;

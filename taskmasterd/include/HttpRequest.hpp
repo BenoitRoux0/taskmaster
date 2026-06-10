@@ -1,5 +1,6 @@
 #ifndef HTTP_REQUEST_HPP
 #define HTTP_REQUEST_HPP
+
 #include <map>
 #include <optional>
 #include <string>
@@ -8,11 +9,11 @@
 class HttpRequest {
 	std::string                                     _rawUrl;
 	mutable std::optional<std::vector<std::string>> _url;
-	std::string										_protocol;
-	std::string										_version;
-	std::string										_method;
-	std::map<std::string, std::string>				_headers;
-	std::string										_body;
+	std::string                                     _protocol;
+	std::string                                     _version;
+	std::string                                     _method;
+	std::map<std::string, std::string>              _headers;
+	std::string                                     _body;
 
 public:
 	HttpRequest(std::string url, std::string protocol, std::string version, std::string method,

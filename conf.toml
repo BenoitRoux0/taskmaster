@@ -16,6 +16,17 @@ std_out = "/tmp/taskmaster_cat.log"
 std_err = "/tmp/taskmaster_cat_err.log"
 env = { HELLO = "World", TEST = "Mars" }
 
+[programs.cat.env]
+HELLO = "World"
+TEST = "Mars"
+
+[programs."sleeper"]
+cmd = "sleep 30"
+
+[programs."sleeper_failed"]
+cmd = "sleep 30"
+start_time = 35
+
 [programs.echo]
 cmd = "echo $HELLO"
 start_at_launch = true

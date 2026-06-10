@@ -19,6 +19,7 @@ public:
 
 	void loadConf(const std::optional<std::string>& confFile);
 	void stop();
+	void handleDeath(pid_t pid, int32_t status);
 
 	static TaskManager& getInstance() { return _instance; }
 
@@ -34,15 +35,14 @@ private:
 	Server      server;
 	std::string _conf;
 
-	void confHttpServer(ServerConf conf);
-
-	void startTask(const std::string& name, int index, const TaskConf& taskConf);
-
 	HttpResponse _getTaskDetails(const HttpRequest& request);
 	HttpResponse _stopTask(const HttpRequest& request);
 	HttpResponse _startTask(const HttpRequest& request);
 
-};
+	void confHttpServer(ServerConf conf);
 
+	void startTask(const std::string& name, int index, const TaskConf& taskConf);
+
+};
 
 #endif // TASK_MANAGER_HPP

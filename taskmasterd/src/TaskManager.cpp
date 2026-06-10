@@ -1,4 +1,5 @@
 #include "TaskManager.hpp"
+
 #include <csignal>
 #include <fcntl.h>
 #include <unistd.h>
@@ -11,7 +12,7 @@
 #include "Logger.hpp"
 #include "serializer.hpp"
 #include "SignalSocket.hpp"
-#include "../../common/common.h"
+#include <sys/wait.h>
 
 TaskManager TaskManager::_instance{};
 
@@ -32,6 +33,44 @@ void TaskManager::loadConf(const std::optional<std::string>& confFile) {
 
 void TaskManager::stop() {
 	server.stop();
+}
+
+void TaskManager::handleDeath(pid_t pid, int32_t status) {
+	const auto end = std::chrono::current_zone()->to_local(std::chrono::system_clock::now());
+	auto       logger = Logger::getInstance("Task master", stdout);
+
+	for (auto& [name, task]: runningTasks) {
+		if (task._pid == pid) {
+			logger->write("{} is dead", name._name);
+			task.status = expected;
+			task.end = end;
+			task.procStatus = status;
+
+			if (tasksConfs[name._name].start_time.has_value()) {
+				auto                          time = tasksConfs[name._name].start_time.value();
+				std::chrono::duration<double> diff = end - task.getStart();
+
+				if (diff < std::chrono::seconds(time))
+					task.status = unexpected;
+			}
+
+			if (WIFEXITED(status)) {
+				const auto exit_codes = tasksConfs[name._name].getExitCodes();
+
+				if (std::ranges::find(exit_codes, WEXITSTATUS(status)) == exit_codes.end()) {
+					task.status = unexpected;
+				}
+			}
+
+			if (WIFSIGNALED(status)) {
+				const auto exp_sig = tasksConfs[name._name].getStopSig();
+
+				if (WTERMSIG(status) != exp_sig) {
+					task.status = unexpected;
+				}
+			}
+		}
+	}
 }
 
 void TaskManager::run() {
@@ -66,9 +105,20 @@ void TaskManager::run() {
 	});
 
 	server.onChildRequest([&](const signalfd_siginfo& siginfo) {
-		Logger::getInstance("Task master", stdout)->write("received: {}", siginfo.ssi_signo);
+		auto logger = Logger::getInstance("Task master", stdout);
+		int pid = 1;
+		int status;
 
 		switch (siginfo.ssi_signo) {
+			case SIGCHLD:
+				logger->write("A child is dead");
+				while (pid > 0) {
+					pid = waitpid(-1, &status, WNOHANG);
+
+					if (pid > 0)
+						this->handleDeath(pid, status);
+				}
+				break;
 			case SIGHUP:
 				getInstance().loadConf(std::nullopt);
 				break;
@@ -81,7 +131,7 @@ void TaskManager::run() {
 
 	sigset_t set;
 	sigemptyset(&set);
-	sigaddset(&set, SIGUSR1);
+	sigaddset(&set, SIGCHLD);
 	sigaddset(&set, SIGHUP);
 	sigaddset(&set, SIGTERM);
 	sigaddset(&set, SIGINT);
@@ -89,7 +139,6 @@ void TaskManager::run() {
 
 	server.registerSocket(std::make_shared<SignalSocket>(server, -1, &set));
 	startPrograms();
-
 	server.run();
 }
 
@@ -252,6 +301,7 @@ HttpResponse TaskManager::_stopTask(const HttpRequest& request) {
 
 	return {""};
 }
+
 
 HttpResponse TaskManager::_startTask(const HttpRequest& request) {
 	auto logger = Logger::getInstance("Task master", stdout);

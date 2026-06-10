@@ -16,7 +16,7 @@ public:
 	virtual void send(const std::string& string) = 0;
 	virtual bool keepAlive() = 0;
 
-	int getFd();
+	int getFd() const;
 
 	virtual ~Socket();
 

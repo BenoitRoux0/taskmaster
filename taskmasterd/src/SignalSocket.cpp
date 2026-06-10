@@ -5,15 +5,18 @@
 
 #include "Server.hpp"
 
-SignalSocket::SignalSocket(Server& server, int sock, const sigset_t* mask): Socket(server, signalfd(sock, mask, 0)) {}
+SignalSocket::SignalSocket(Server& server, int sock, const sigset_t* mask): Socket(server, signalfd(sock, mask, SFD_NONBLOCK)) {}
 
 void SignalSocket::handleEvent(uint32_t event) {
 	if (event & EPOLLIN) {
 		signalfd_siginfo siginfo;
+		ssize_t ret;
 
-		read(_fd, &siginfo, sizeof(signalfd_siginfo));
-
-		_server.handleSignalRequest(siginfo);
+		do {
+			ret = read(_fd, &siginfo, sizeof(signalfd_siginfo));
+			if (ret > 0)
+				_server.handleSignalRequest(siginfo);
+		} while (ret > 0);
 	}
 }
 
