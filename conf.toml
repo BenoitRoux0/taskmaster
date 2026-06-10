@@ -1,8 +1,5 @@
-[server]
-port = 12345
-
 [programs."ls"]
-cmd = "ls -la /home/tgellon/"
+cmd = "ls -la $HOME"
 num_procs = 2
 start_at_launch = false
 workdir = "/tmp"
@@ -10,7 +7,7 @@ std_out = "/tmp/taskmaster_ls.log"
 env = { HELLO = "World", TEST = "Mars" }
 
 [programs.cat]
-cmd = "cat /home/tgellon/.zshrc"
+cmd = "cat $HOME/.zshrc"
 start_at_launch = true
 std_out = "/tmp/taskmaster_cat.log"
 std_err = "/tmp/taskmaster_cat_err.log"

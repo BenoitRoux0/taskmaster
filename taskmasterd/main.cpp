@@ -4,8 +4,10 @@
 int main() {
     std::println("Hello from daemon: {}", getpid());
 
-	TaskManager::getInstance().loadConf("./conf.toml");
-	TaskManager::getInstance().run();
+	TaskManager manager;
+
+	manager.loadConf("./conf.toml");
+	manager.run();
 
 	return 0;
 }

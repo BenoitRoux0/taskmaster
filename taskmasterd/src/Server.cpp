@@ -7,69 +7,23 @@
 #include <ranges>
 #include <utility>
 
-#include "AcceptSocket.hpp"
+#include "HttpListener.hpp"
 #include "HttpResponse.hpp"
 #include "HttpSessionSocket.hpp"
 
-Server::Server() {
-	_epollFd = epoll_create(1024);
-}
+Server::Server() = default;
 
-void Server::loadConf(ServerConf conf) {
-	if (_conf.has_value() && _conf->port == conf.port)
-		return;
-
-	if (_accept_socket != -1) {
-		close(_accept_socket);
-	}
-
-	_accept_socket = socket(AF_INET, SOCK_STREAM, 0);
-
-	sockaddr_in sin{};
-
-	bzero(&sin, sizeof(sockaddr_in));
-
-	sin.sin_addr.s_addr = htonl(INADDR_ANY);
-	sin.sin_family = AF_INET;
-	sin.sin_port = htons(conf.port);
-
-	if (bind(_accept_socket, reinterpret_cast<sockaddr*>(&sin), sizeof(sin))) {
-		close(_accept_socket);
-		_accept_socket = -1;
-		return;
-	}
-
-	if (listen(_accept_socket, 64) == -1) {
-		close(_accept_socket);
-		_accept_socket = -1;
-		return;
-	}
-
-	_sockets.insert(std::make_pair(_accept_socket, new AcceptSocket(*this, _accept_socket)));
-
-	epoll_event event = { };
-
-	event.events = EPOLLIN;
-	event.data.fd = _accept_socket;
-
-	epoll_ctl(_epollFd, EPOLL_CTL_ADD, _accept_socket, &event);
-
-	std::println("server port: {}", conf.port);
-}
 
 void Server::run() {
 	epoll_event events[1024];
 
-	for (;!_stop;) {
-
-		const int events_count = epoll_wait(_epollFd, events, _sockets.size(), -1);
+	while (!_stop) {
+		auto start = std::chrono::steady_clock::now();
+		const int events_count = epoll_wait(_epollFd, events, _sockets.size(), 1000);
 
 		for (int i = 0; i < events_count; ++i) {
-			auto it = _sockets.find(events[i].data.fd);
-			if (it != _sockets.end() && it->second) {
-				it->second->handleEvent(events[i].events);
-			}
-			// _sockets[_events[i].data.fd]->handleEvent(_events[i].events);
+			auto* socket = static_cast<Socket*>(events[i].data.ptr);
+			socket->handleEvent(events[i].events);
 		}
 
 		for (auto toRemove: _toRemove) {
@@ -78,14 +32,34 @@ void Server::run() {
 		}
 
 		_toRemove.clear();
+
+		auto delta = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
+
+		_onWakeUp(delta);
 	}
 }
 
-void Server::registerSocket(std::shared_ptr<Socket> sock) {
+void Server::bind(uint16_t port) {
+	_epollFd = epoll_create(1024);
+
+	auto listener = std::make_shared<HttpListener>(*this, port);
+
+	if (!listener->isReady()) {
+		_ready = false;
+		return;
+	}
+
+	this->registerSocket(listener);
+
+	std::println("server port: {}", port);
+	_ready = true;
+}
+
+void Server::registerSocket(const std::shared_ptr<Socket>& sock) {
 	epoll_event event = { };
 
-	event.events = EPOLLIN | EPOLLET | EPOLLRDHUP | EPOLLHUP;
-	event.data.fd = sock->getFd();
+	event.events = EPOLLIN | EPOLLRDHUP | EPOLLHUP;
+	event.data.ptr = sock.get();
 
 	epoll_ctl(_epollFd, EPOLL_CTL_ADD, sock->getFd(), &event);
 
@@ -97,8 +71,8 @@ void Server::registerSocket(std::shared_ptr<Socket> sock) {
 void Server::sendResponse(const int socket, const HttpResponse& response) {
 	epoll_event event = { };
 
-	event.events = EPOLLIN | EPOLLET | EPOLLRDHUP | EPOLLHUP | EPOLLOUT;
-	event.data.fd = socket;
+	event.events = EPOLLIN | EPOLLRDHUP | EPOLLHUP | EPOLLOUT;
+	event.data.ptr = _sockets[socket].get();
 
 	epoll_ctl(_epollFd, EPOLL_CTL_MOD, socket, &event);
 
@@ -108,8 +82,8 @@ void Server::sendResponse(const int socket, const HttpResponse& response) {
 void Server::endSending(const int socket) {
 	epoll_event event = { };
 
-	event.events = EPOLLIN | EPOLLET | EPOLLRDHUP | EPOLLHUP;
-	event.data.fd = socket;
+	event.events = EPOLLIN | EPOLLRDHUP | EPOLLHUP;
+	event.data.ptr = _sockets[socket].get();
 
 	epoll_ctl(_epollFd, EPOLL_CTL_MOD, socket, &event);
 
@@ -123,7 +97,7 @@ void Server::handleHttpRequest(const int socket, const HttpRequest& http_request
 	this->sendResponse(socket, response);
 }
 
-void Server::handleSignalRequest(const signalfd_siginfo& sig_request) {
+void Server::handleSignalRequest(const signalfd_siginfo& sig_request) const {
 	_onChildRequest(sig_request);
 }
 
@@ -135,12 +109,25 @@ void Server::onChildRequest(std::function<void(signalfd_siginfo)> callback) {
 	_onChildRequest = std::move(callback);
 }
 
+void Server::onWakeUp(std::function<void(std::chrono::milliseconds)> callback) {
+	_onWakeUp = std::move(callback);
+}
+
 void Server::stop() {
 	_stop = true;
 }
 
 void Server::remove(const int socket) {
 	_toRemove.push_back(socket);
+}
+
+void Server::clearConnections() {
+	close(_epollFd);
+	_sockets.clear();
+}
+
+bool Server::isReady() const {
+	return _ready;
 }
 
 Server::~Server() {

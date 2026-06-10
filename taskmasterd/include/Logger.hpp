@@ -7,19 +7,16 @@
 
 class Logger {
 public:
-	static Logger* getInstance(std::string head, std::FILE* stream);
+	Logger() = default;
+	Logger(std::string head, std::FILE* stream);
 
 	template< class... Args >
 	void write(std::format_string<Args...> fmt, Args&&... args);
 
+
 private:
-	Logger() = delete;
-
-	Logger(std::string head, std::FILE* stream);
 	std::string    _head;
-	std::FILE*     _stream;
-
-	static Logger* _instance;
+	std::FILE*     _stream{stdout};
 };
 
 template<class ... Args>

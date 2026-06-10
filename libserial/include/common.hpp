@@ -50,7 +50,7 @@ namespace stackixx {
 	template <typename T>
 	auto getMemberName(std::string_view memberId) {
 		constexpr auto members = std::meta::reflect_constant_array(
-			std::meta::nonstatic_data_members_of(^^T, std::meta::access_context::unchecked()));
+			std::meta::nonstatic_data_members_of(^^T, std::meta::access_context::current()));
 
 		template for (constexpr auto member : [:members:]) {
 			if (std::meta::identifier_of(member) == memberId) {
