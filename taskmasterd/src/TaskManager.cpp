@@ -39,8 +39,8 @@ void TaskManager::handleDeath(pid_t pid, int32_t status) {
 			task.end = end;
 			task.procStatus = status;
 
-			if (tasksConfs[name._name].start_time.has_value()) {
-				auto                          time = tasksConfs[name._name].start_time.value();
+			if (_tasksConfs[name._name].start_time.has_value()) {
+				auto                          time = _tasksConfs[name._name].start_time.value();
 				std::chrono::duration<double> diff = end - task.getStart();
 
 				if (diff < std::chrono::seconds(time))
@@ -96,20 +96,6 @@ void TaskManager::run() {
 	_server.run();
 }
 
-void TaskManager::startPrograms() {
-	for (const auto& [name,task]: _tasksConfs) {
-		int pid = fork();
-		if (pid == 0) {
-			_server.clearConnections();
-			execle("/bin/bash", "bash", "-c", task.cmd.c_str(), nullptr, environ);
-		} else {
-			auto id = RunningTaskId(name, 0);
-			_runningTasks[id] = RunningTask(pid);
-			_logger.write("Launching program: {}", name);
-		}
-	}
-}
-
 HttpResponse TaskManager::_onHttpRequest(const HttpRequest& request) {
 	_logger.write("received: {}", request.getRawUrl());
 
@@ -131,11 +117,10 @@ HttpResponse TaskManager::_onHttpRequest(const HttpRequest& request) {
 	if (request.getMethod() == "POST") {
 		if (request.getUrl().size() == 3 && request.getUrl()[0] == "task" && request.getUrl()[2] == "stop") {
 			return this->_stopTask(request);
+		} else if (request.getUrl().size() == 3 && request.getUrl()[0] == "task" && request.getUrl()[2] == "start") {
+			return this->_startTask(request);
 		}
-	else if (request.getUrl().size() == 3 && request.getUrl()[0] == "task" && request.getUrl()[2] == "start") {
-				return this->_startTask(request);
-			}
-		}
+	}
 
 	return {"404", ""};
 }
@@ -177,7 +162,7 @@ static void configureTask(TaskConf task) {
 	}
 
 	if (task.env.has_value()) {
-		for (const auto& [key, value] : task.env.value()) {
+		for (const auto& [key, value]: task.env.value()) {
 			setenv(key.c_str(), value.c_str(), 1);
 		}
 	}
@@ -214,7 +199,7 @@ static void configureTask(TaskConf task) {
 }
 
 void TaskManager::startPrograms() {
-	for (auto& [name, task] : tasksConfs) {
+	for (auto& [name, task]: _tasksConfs) {
 		if (!task.getStartAtLaunch()) {
 			continue;
 		}
@@ -227,23 +212,22 @@ void TaskManager::startPrograms() {
 }
 
 void TaskManager::startProgram(const std::string& name, int index) {
-	auto logger = Logger::getInstance("Task master", stdout);
-	auto confIt = tasksConfs.find(name);
+	auto confIt = _tasksConfs.find(name);
 
-	if (confIt == tasksConfs.end()) {
-		logger->write("Cannot start '{}': program not found in configuration", name);
+	if (confIt == _tasksConfs.end()) {
+		_logger.write("Cannot start '{}': program not found in configuration", name);
 		return;
 	}
 
 	if (index < 0 || index >= confIt->second.getNumProcs()) {
-		logger->write("Cannot start '{}': invalid process index {}", name, index);
+		_logger.write("Cannot start '{}': invalid process index {}", name, index);
 		return;
 	}
 
 	RunningTaskId id(name, index);
-	if (runningTasks.find(id) != runningTasks.end()) {
-		if (runningTasks[id].status == running || runningTasks[id].status == starting) {
-			logger->write("Program already running: {}", name);
+	if (_runningTasks.find(id) != _runningTasks.end()) {
+		if (_runningTasks[id].status == running || _runningTasks[id].status == starting) {
+			_logger.write("Program already running: {}", name);
 			return;
 		}
 	}
@@ -252,7 +236,6 @@ void TaskManager::startProgram(const std::string& name, int index) {
 }
 
 void TaskManager::startTask(const std::string& name, int index, const TaskConf& taskConf) {
-	auto logger = Logger::getInstance("Task master", stdout);
 	RunningTaskId id(name, index);
 
 	pid_t pid = fork();
@@ -265,11 +248,14 @@ void TaskManager::startTask(const std::string& name, int index, const TaskConf& 
 		perror("execle");
 		exit(1);
 	} else if (pid > 0) {
-		runningTasks[id] = RunningTask(pid);
-		runningTasks[id].status = starting;
-		logger->write("Launching program: {}_{}", name, index);
+		_runningTasks[id] = RunningTask(pid);
+		_runningTasks[id].status = starting;
+		_logger.write("Launching program: {}_{}", name, index);
 	} else {
 		perror("fork");
+	}
+}
+
 void TaskManager::_onWakeUp(std::chrono::milliseconds delta) {
 	for (auto taskId: _stoppingTasks) {
 		if (_runningTasks[taskId].decreaseStopTime(delta)) {
@@ -334,8 +320,6 @@ HttpResponse TaskManager::_stopTask(const HttpRequest& request) {
 
 
 HttpResponse TaskManager::_startTask(const HttpRequest& request) {
-	auto logger = Logger::getInstance("Task master", stdout);
-
 	const auto& url = request.getUrl();
 
 	if (url.size() != 3 || url[0] != "task" || url[2] != "start") {
@@ -343,10 +327,10 @@ HttpResponse TaskManager::_startTask(const HttpRequest& request) {
 	}
 
 	const std::string& name = url[1];
-	auto confIt = tasksConfs.find(name);
+	auto               confIt = _tasksConfs.find(name);
 
-	if (confIt == tasksConfs.end()) {
-		logger->write("Start request rejected: '{}' is not configured", name);
+	if (confIt == _tasksConfs.end()) {
+		_logger.write("Start request rejected: '{}' is not configured", name);
 		return {"404", "program is not configured"};
 	}
 
@@ -355,9 +339,9 @@ HttpResponse TaskManager::_startTask(const HttpRequest& request) {
 
 	for (int i = 0; i < confIt->second.getNumProcs(); ++i) {
 		RunningTaskId id(name, i);
-		auto          it = runningTasks.find(id);
+		auto          it = _runningTasks.find(id);
 
-		if (it != runningTasks.end() && (it->second.status == running || it->second.status == starting)) {
+		if (it != _runningTasks.end() && (it->second.status == running || it->second.status == starting)) {
 			++alreadyRunning;
 			continue;
 		}
@@ -367,13 +351,9 @@ HttpResponse TaskManager::_startTask(const HttpRequest& request) {
 	}
 
 	if (!startedAtLeastOne) {
-		logger->write("Start request ignored: '{}' already running ({} process(es))", name, alreadyRunning);
+		_logger.write("Start request ignored: '{}' already running ({} process(es))", name, alreadyRunning);
 		return {"403", "program already running"};
 	}
 
 	return {"Program started"};
-}
-
-void TaskManager::confHttpServer(ServerConf conf) {
-	server.loadConf(conf);
 }
