@@ -13,8 +13,7 @@
 class Socket;
 
 class Server {
-	int                                            _epollFd;
-	int                                            _accept_socket = -1;
+	int                                            _epollFd{-1};
 	std::optional<ServerConf>                      _conf;
 	std::map<int, std::shared_ptr<Socket>>         _sockets;
 	std::function<HttpResponse(HttpRequest)>       _onHttpRequest;
@@ -22,14 +21,15 @@ class Server {
 	std::function<void(std::chrono::milliseconds)> _onWakeUp;
 	std::vector<int>                               _toRemove;
 	bool                                           _stop{false};
+	bool                                           _ready{false};
 
 public:
 	Server();
 	~Server();
 
-	void loadConf(ServerConf conf);
-
 	void run();
+
+	void bind(uint16_t port);
 
 	void registerSocket(std::shared_ptr<Socket> sock);
 
@@ -44,5 +44,8 @@ public:
 
 	void stop();
 	void remove(int socket);
+	void clearConnections();
+
+	[[nodiscard]] bool isReady() const;
 };
 #endif // HTTP_SERVER_HPP

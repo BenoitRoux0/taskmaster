@@ -11,52 +11,8 @@
 #include "HttpResponse.hpp"
 #include "HttpSessionSocket.hpp"
 
-Server::Server() {
-	_epollFd = epoll_create(1024);
-}
+Server::Server() = default;
 
-void Server::loadConf(ServerConf conf) {
-	if (_conf.has_value() && _conf->port == conf.port)
-		return;
-
-	if (_accept_socket != -1) {
-		close(_accept_socket);
-	}
-
-	_accept_socket = socket(AF_INET, SOCK_STREAM, 0);
-
-	sockaddr_in sin{};
-
-	bzero(&sin, sizeof(sockaddr_in));
-
-	sin.sin_addr.s_addr = htonl(INADDR_ANY);
-	sin.sin_family = AF_INET;
-	sin.sin_port = htons(conf.port);
-
-	if (bind(_accept_socket, reinterpret_cast<sockaddr*>(&sin), sizeof(sin))) {
-		close(_accept_socket);
-		_accept_socket = -1;
-		return;
-	}
-
-	if (listen(_accept_socket, 64) == -1) {
-		close(_accept_socket);
-		_accept_socket = -1;
-		return;
-	}
-
-	auto listener = new HttpListener(*this, _accept_socket);
-	_sockets.insert(std::make_pair(_accept_socket, listener));
-
-	epoll_event event = { };
-
-	event.events = EPOLLIN;
-	event.data.ptr = listener;
-
-	epoll_ctl(_epollFd, EPOLL_CTL_ADD, _accept_socket, &event);
-
-	std::println("server port: {}", conf.port);
-}
 
 void Server::run() {
 	epoll_event events[1024];
@@ -81,6 +37,47 @@ void Server::run() {
 
 		_onWakeUp(delta);
 	}
+}
+
+void Server::bind(uint16_t port) {
+	_epollFd = epoll_create(1024);
+
+	int acceptSocket = socket(AF_INET, SOCK_STREAM, 0);
+
+	sockaddr_in sin{};
+
+	bzero(&sin, sizeof(sockaddr_in));
+
+	sin.sin_addr.s_addr = htonl(INADDR_ANY);
+	sin.sin_family = AF_INET;
+	sin.sin_port = htons(port);
+
+	if (::bind(acceptSocket, reinterpret_cast<sockaddr*>(&sin), sizeof(sin))) {
+		close(acceptSocket);
+		acceptSocket = -1;
+		_ready = false;
+		return;
+	}
+
+	if (listen(acceptSocket, 64) == -1) {
+		close(acceptSocket);
+		acceptSocket = -1;
+		_ready = false;
+		return;
+	}
+
+	auto listener = std::make_shared<HttpListener>(*this, acceptSocket);
+	_sockets.insert(std::make_pair(acceptSocket, listener));
+
+	epoll_event event = { };
+
+	event.events = EPOLLIN;
+	event.data.ptr = listener.get();
+
+	epoll_ctl(_epollFd, EPOLL_CTL_ADD, acceptSocket, &event);
+
+	std::println("server port: {}", port);
+	_ready = true;
 }
 
 void Server::registerSocket(std::shared_ptr<Socket> sock) {
@@ -147,6 +144,15 @@ void Server::stop() {
 
 void Server::remove(const int socket) {
 	_toRemove.push_back(socket);
+}
+
+void Server::clearConnections() {
+	close(_epollFd);
+	_sockets.clear();
+}
+
+bool Server::isReady() const {
+	return _ready;
 }
 
 Server::~Server() {
