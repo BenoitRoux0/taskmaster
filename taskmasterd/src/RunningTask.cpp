@@ -19,3 +19,17 @@ std::chrono::time_point<std::chrono::local_t, std::chrono::nanoseconds> RunningT
 void RunningTask::dead() {
 	end = std::chrono::current_zone()->to_local(std::chrono::system_clock::now());
 }
+
+void RunningTask::setStopTime(const std::chrono::milliseconds ms) {
+	remainingStopTime = ms;
+}
+
+bool RunningTask::decreaseStopTime(const std::chrono::milliseconds ms) {
+	if (ms > remainingStopTime) {
+		remainingStopTime = std::chrono::milliseconds(0);
+		return true;
+	}
+
+	remainingStopTime -= ms;
+	return false;
+}

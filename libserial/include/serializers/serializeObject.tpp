@@ -5,7 +5,7 @@ namespace stackixx {
 	template <typename T>
 	std::string serializeObject(const T& value, size_t indent) {
 		constexpr auto members = std::meta::reflect_constant_array(
-			std::meta::nonstatic_data_members_of(^^T, std::meta::access_context::unchecked()));
+			std::meta::nonstatic_data_members_of(^^T, std::meta::access_context::current()));
 
 		std::string out = "{\n";
 

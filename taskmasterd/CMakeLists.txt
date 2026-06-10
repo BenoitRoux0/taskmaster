@@ -31,7 +31,7 @@ add_executable(taskmasterd
         src/HttpRequestBuilder.cpp
         src/HttpResponse.cpp
         src/HttpResponseBuilder.cpp
-        src/AcceptSocket.cpp
+        src/HttpListener.cpp
         src/Socket.cpp
         src/Logger.cpp
         src/SignalSocket.cpp

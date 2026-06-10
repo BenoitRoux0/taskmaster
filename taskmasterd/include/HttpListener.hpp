@@ -6,14 +6,18 @@
 
 #include "Socket.hpp"
 
-class AcceptSocket: public Socket {
+class HttpListener: public Socket {
 public:
-	AcceptSocket(Server& server, int sock);
+	HttpListener(Server& server, uint16_t port);
 
 	void handleEvent(uint32_t event) override;
 
 	void send(const std::string& string) override;
 	bool keepAlive() override;
+	[[nodiscard]] bool isReady() const;
+
+private:
+	bool  _ready;
 };
 
 #endif // ACCEPT_SOCKET_HPP

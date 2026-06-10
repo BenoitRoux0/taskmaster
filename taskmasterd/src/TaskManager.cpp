@@ -14,40 +14,33 @@
 #include "SignalSocket.hpp"
 #include <sys/wait.h>
 
-TaskManager TaskManager::_instance{};
-
 void TaskManager::loadConf(const std::optional<std::string>& confFile) {
 	try {
 		if (confFile.has_value())
 			_conf = confFile.value();
 		auto confParsed = toml::parse(_conf, toml::spec::v(1, 1, 0));
 
-		auto serverConf = toml::find_or<ServerConf>(confParsed, "server", {.port = 3060});
-		tasksConfs = toml::find<std::map<std::string, TaskConf>>(confParsed, "programs");
-
-		confHttpServer(serverConf);
+		_tasksConfs = toml::find<std::map<std::string, TaskConf>>(confParsed, "programs");
 	} catch (toml::syntax_error& e) {
 		std::print("{}", e.what());
 	}
 }
 
 void TaskManager::stop() {
-	server.stop();
+	_server.stop();
 }
 
 void TaskManager::handleDeath(pid_t pid, int32_t status) {
 	const auto end = std::chrono::current_zone()->to_local(std::chrono::system_clock::now());
-	auto       logger = Logger::getInstance("Task master", stdout);
-
-	for (auto& [name, task]: runningTasks) {
+	for (auto& [name, task]: _runningTasks) {
 		if (task._pid == pid) {
-			logger->write("{} is dead", name._name);
+			_logger.write("{} is dead", name._name);
 			task.status = expected;
 			task.end = end;
 			task.procStatus = status;
 
-			if (tasksConfs[name._name].start_time.has_value()) {
-				auto                          time = tasksConfs[name._name].start_time.value();
+			if (_tasksConfs[name._name].start_time.has_value()) {
+				auto                          time = _tasksConfs[name._name].start_time.value();
 				std::chrono::duration<double> diff = end - task.getStart();
 
 				if (diff < std::chrono::seconds(time))
@@ -55,7 +48,7 @@ void TaskManager::handleDeath(pid_t pid, int32_t status) {
 			}
 
 			if (WIFEXITED(status)) {
-				const auto exit_codes = tasksConfs[name._name].getExitCodes();
+				const auto exit_codes = _tasksConfs[name._name].getExitCodes();
 
 				if (std::ranges::find(exit_codes, WEXITSTATUS(status)) == exit_codes.end()) {
 					task.status = unexpected;
@@ -63,71 +56,32 @@ void TaskManager::handleDeath(pid_t pid, int32_t status) {
 			}
 
 			if (WIFSIGNALED(status)) {
-				const auto exp_sig = tasksConfs[name._name].getStopSig();
+				const auto exp_sig = _tasksConfs[name._name].getStopSig();
 
 				if (WTERMSIG(status) != exp_sig) {
 					task.status = unexpected;
 				}
 			}
+
+			task._pid = -1;
+			std::erase_if(_stoppingTasks, [name](const auto& current) {
+				return current == name;
+			});
 		}
 	}
 }
 
 void TaskManager::run() {
-	server.onHttpRequest([&](const HttpRequest& request) -> HttpResponse {
-		Logger::getInstance("Task master", stdout)->write("received: {}", request.getRawUrl());
+	_server.bind(12345);
 
-		if (request.getMethod() == "GET") {
-			if (request.getRawUrl() == "/tasks") {
-				std::vector<RunningTask> data{};
+	if (!_server.isReady())
+		return;
 
-				for (const auto& task: runningTasks | std::views::values) {
-					data.push_back(task);
-				}
+	_server.onHttpRequest([&](const auto& request) { return this->_onHttpRequest(request); });
 
-				return {stackixx::serialize(data)};
-			}
-			if (*request.getUrl().begin() == "task") {
-				return this->_getTaskDetails(request);
-			}
-		}
+	_server.onChildRequest([&](const auto& siginfo) { this->_onChildRequest(siginfo); });
 
-		if (request.getMethod() == "POST") {
-			if (request.getUrl().size() == 3 && request.getUrl()[0] == "task" && request.getUrl()[2] == "stop") {
-				return this->_stopTask(request);
-			}
-			else if (request.getUrl().size() == 3 && request.getUrl()[0] == "task" && request.getUrl()[2] == "start") {
-				return this->_startTask(request);
-			}
-		}
-
-		return {"404", ""};
-	});
-
-	server.onChildRequest([&](const signalfd_siginfo& siginfo) {
-		auto logger = Logger::getInstance("Task master", stdout);
-		int pid = 1;
-		int status;
-
-		switch (siginfo.ssi_signo) {
-			case SIGCHLD:
-				logger->write("A child is dead");
-				while (pid > 0) {
-					pid = waitpid(-1, &status, WNOHANG);
-
-					if (pid > 0)
-						this->handleDeath(pid, status);
-				}
-				break;
-			case SIGHUP:
-				getInstance().loadConf(std::nullopt);
-				break;
-			case SIGTERM:
-			case SIGINT:
-				getInstance().stop();
-				break;
-		}
-	});
+	_server.onWakeUp([&](auto delta) { this->_onWakeUp(delta); });
 
 	sigset_t set;
 	sigemptyset(&set);
@@ -137,9 +91,62 @@ void TaskManager::run() {
 	sigaddset(&set, SIGINT);
 	pthread_sigmask(SIG_BLOCK, &set, nullptr);
 
-	server.registerSocket(std::make_shared<SignalSocket>(server, -1, &set));
+	_server.registerSocket(std::make_shared<SignalSocket>(_server, -1, &set));
 	startPrograms();
-	server.run();
+	_server.run();
+}
+
+HttpResponse TaskManager::_onHttpRequest(const HttpRequest& request) {
+	_logger.write("received: {}", request.getRawUrl());
+
+	if (request.getMethod() == "GET") {
+		if (request.getRawUrl() == "/tasks") {
+			std::vector<RunningTask> data{};
+
+			for (const auto& task: _runningTasks | std::views::values) {
+				data.push_back(task);
+			}
+
+			return {stackixx::serialize(data)};
+		}
+		if (*request.getUrl().begin() == "task") {
+			return this->_getTaskDetails(request);
+		}
+	}
+
+	if (request.getMethod() == "POST") {
+		if (request.getUrl().size() == 3 && request.getUrl()[0] == "task" && request.getUrl()[2] == "stop") {
+			return this->_stopTask(request);
+		} else if (request.getUrl().size() == 3 && request.getUrl()[0] == "task" && request.getUrl()[2] == "start") {
+			return this->_startTask(request);
+		}
+	}
+
+	return {"404", ""};
+}
+
+void TaskManager::_onChildRequest(const signalfd_siginfo& siginfo) {
+	int pid = 1;
+	int status;
+
+	switch (siginfo.ssi_signo) {
+		case SIGCHLD:
+			_logger.write("A child is dead");
+			while (pid > 0) {
+				pid = waitpid(-1, &status, WNOHANG);
+
+				if (pid > 0)
+					this->handleDeath(pid, status);
+			}
+			break;
+		case SIGHUP:
+			this->loadConf(std::nullopt);
+			break;
+		case SIGTERM:
+		case SIGINT:
+			this->stop();
+			break;
+	}
 }
 
 static void configureTask(TaskConf task) {
@@ -155,7 +162,7 @@ static void configureTask(TaskConf task) {
 	}
 
 	if (task.env.has_value()) {
-		for (const auto& [key, value] : task.env.value()) {
+		for (const auto& [key, value]: task.env.value()) {
 			setenv(key.c_str(), value.c_str(), 1);
 		}
 	}
@@ -192,7 +199,7 @@ static void configureTask(TaskConf task) {
 }
 
 void TaskManager::startPrograms() {
-	for (auto& [name, task] : tasksConfs) {
+	for (auto& [name, task]: _tasksConfs) {
 		if (!task.getStartAtLaunch()) {
 			continue;
 		}
@@ -205,23 +212,22 @@ void TaskManager::startPrograms() {
 }
 
 void TaskManager::startProgram(const std::string& name, int index) {
-	auto logger = Logger::getInstance("Task master", stdout);
-	auto confIt = tasksConfs.find(name);
+	auto confIt = _tasksConfs.find(name);
 
-	if (confIt == tasksConfs.end()) {
-		logger->write("Cannot start '{}': program not found in configuration", name);
+	if (confIt == _tasksConfs.end()) {
+		_logger.write("Cannot start '{}': program not found in configuration", name);
 		return;
 	}
 
 	if (index < 0 || index >= confIt->second.getNumProcs()) {
-		logger->write("Cannot start '{}': invalid process index {}", name, index);
+		_logger.write("Cannot start '{}': invalid process index {}", name, index);
 		return;
 	}
 
 	RunningTaskId id(name, index);
-	if (runningTasks.find(id) != runningTasks.end()) {
-		if (runningTasks[id].status == running || runningTasks[id].status == starting) {
-			logger->write("Program already running: {}", name);
+	if (_runningTasks.find(id) != _runningTasks.end()) {
+		if (_runningTasks[id].status == running || _runningTasks[id].status == starting) {
+			_logger.write("Program already running: {}", name);
 			return;
 		}
 	}
@@ -230,7 +236,6 @@ void TaskManager::startProgram(const std::string& name, int index) {
 }
 
 void TaskManager::startTask(const std::string& name, int index, const TaskConf& taskConf) {
-	auto logger = Logger::getInstance("Task master", stdout);
 	RunningTaskId id(name, index);
 
 	pid_t pid = fork();
@@ -243,24 +248,33 @@ void TaskManager::startTask(const std::string& name, int index, const TaskConf& 
 		perror("execle");
 		exit(1);
 	} else if (pid > 0) {
-		runningTasks[id] = RunningTask(pid);
-		runningTasks[id].status = starting;
-		logger->write("Launching program: {}_{}", name, index);
+		_runningTasks[id] = RunningTask(pid);
+		_runningTasks[id].status = starting;
+		_logger.write("Launching program: {}_{}", name, index);
 	} else {
 		perror("fork");
 	}
 }
 
-TaskManager::TaskManager() {}
+void TaskManager::_onWakeUp(std::chrono::milliseconds delta) {
+	for (auto taskId: _stoppingTasks) {
+		if (_runningTasks[taskId].decreaseStopTime(delta)) {
+			kill(_runningTasks[taskId]._pid, SIGKILL);
+		}
+	}
+}
+
+TaskManager::TaskManager() = default;
 
 TaskManager::~TaskManager() = default;
 
+
 HttpResponse TaskManager::_getTaskDetails(const HttpRequest& request) {
 	if (request.getUrl().size() == 2) {
-		auto name = request.getUrl()[1];
+		auto                     name = request.getUrl()[1];
 		std::vector<RunningTask> tasks{};
 
-		for (const auto& [id, task]: runningTasks) {
+		for (const auto& [id, task]: _runningTasks) {
 			if (id._name == name)
 				tasks.push_back(task);
 		}
@@ -274,7 +288,7 @@ HttpResponse TaskManager::_getTaskDetails(const HttpRequest& request) {
 
 		std::vector<RunningTask> tasks{};
 
-		for (const auto& [id, task]: runningTasks) {
+		for (const auto& [id, task]: _runningTasks) {
 			if (id._name == name && id._index == index)
 				tasks.push_back(task);
 		}
@@ -292,9 +306,11 @@ HttpResponse TaskManager::_stopTask(const HttpRequest& request) {
 
 	auto name = request.getUrl()[1];
 
-	for (const auto& [id, task]: runningTasks) {
+	for (auto& [id, task]: _runningTasks) {
 		if (id._name == name && (task.status == running || task.status == starting)) {
-			auto sig = tasksConfs[id._name].getStopSig();
+			auto sig = _tasksConfs[id._name].getStopSig();
+			task.setStopTime(_tasksConfs[id._name].getStopTime());
+			_stoppingTasks.insert(id);
 			kill(task._pid, sig);
 		}
 	}
@@ -304,8 +320,6 @@ HttpResponse TaskManager::_stopTask(const HttpRequest& request) {
 
 
 HttpResponse TaskManager::_startTask(const HttpRequest& request) {
-	auto logger = Logger::getInstance("Task master", stdout);
-
 	const auto& url = request.getUrl();
 
 	if (url.size() != 3 || url[0] != "task" || url[2] != "start") {
@@ -313,10 +327,10 @@ HttpResponse TaskManager::_startTask(const HttpRequest& request) {
 	}
 
 	const std::string& name = url[1];
-	auto confIt = tasksConfs.find(name);
+	auto               confIt = _tasksConfs.find(name);
 
-	if (confIt == tasksConfs.end()) {
-		logger->write("Start request rejected: '{}' is not configured", name);
+	if (confIt == _tasksConfs.end()) {
+		_logger.write("Start request rejected: '{}' is not configured", name);
 		return {"404", "program is not configured"};
 	}
 
@@ -325,9 +339,9 @@ HttpResponse TaskManager::_startTask(const HttpRequest& request) {
 
 	for (int i = 0; i < confIt->second.getNumProcs(); ++i) {
 		RunningTaskId id(name, i);
-		auto          it = runningTasks.find(id);
+		auto          it = _runningTasks.find(id);
 
-		if (it != runningTasks.end() && (it->second.status == running || it->second.status == starting)) {
+		if (it != _runningTasks.end() && (it->second.status == running || it->second.status == starting)) {
 			++alreadyRunning;
 			continue;
 		}
@@ -337,13 +351,9 @@ HttpResponse TaskManager::_startTask(const HttpRequest& request) {
 	}
 
 	if (!startedAtLeastOne) {
-		logger->write("Start request ignored: '{}' already running ({} process(es))", name, alreadyRunning);
+		_logger.write("Start request ignored: '{}' already running ({} process(es))", name, alreadyRunning);
 		return {"403", "program already running"};
 	}
 
 	return {"Program started"};
-}
-
-void TaskManager::confHttpServer(ServerConf conf) {
-	server.loadConf(conf);
 }
