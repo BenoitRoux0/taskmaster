@@ -23,6 +23,7 @@ public:
 
 	void run();
 	void startPrograms();
+	void startProgram(const std::string& name, int index);
 
 	HttpResponse _onHttpRequest(const HttpRequest& request);
 	void         _onChildRequest(const signalfd_siginfo& siginfo);
@@ -34,12 +35,15 @@ private:
 
 	HttpResponse _getTaskDetails(const HttpRequest& request);
 	HttpResponse _stopTask(const HttpRequest& request);
+	HttpResponse _startTask(const HttpRequest& request);
 
 	Logger _logger{};
 
 	std::set<RunningTaskId>              _stoppingTasks{};
 	std::map<std::string, TaskConf>      _tasksConfs{};
 	std::map<RunningTaskId, RunningTask> _runningTasks{};
+
+	void startTask(const std::string& name, int index, const TaskConf& taskConf);
 };
 
 #endif // TASK_MANAGER_HPP

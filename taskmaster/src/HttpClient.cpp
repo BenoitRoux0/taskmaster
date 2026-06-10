@@ -46,6 +46,7 @@ std::string HttpClient::get(const std::string& url) {
 	resetCurl();
 
 	std::string fullUrl = buildUrl(url);
+	// curl_easy_setopt(_curl, CURLOPT_VERBOSE, 1L); to check connexion is maintained on server
 	curl_easy_setopt(_curl, CURLOPT_URL, fullUrl.c_str());
 	curl_easy_setopt(_curl, CURLOPT_HTTPGET, 1L);
 	curl_easy_setopt(_curl, CURLOPT_WRITEFUNCTION, writeCallback);
@@ -74,6 +75,7 @@ std::string HttpClient::post(const std::string& url, const std::string& json) {
 	header = curl_slist_append(header, "Content-Type: application/json");
 
 	std::string fullUrl = buildUrl(url);
+	// curl_easy_setopt(_curl, CURLOPT_VERBOSE, 1L); to check connexion is maintained on server
 	curl_easy_setopt(_curl, CURLOPT_URL, fullUrl.c_str());
 	curl_easy_setopt(_curl, CURLOPT_POST, 1L);
 	curl_easy_setopt(_curl, CURLOPT_HTTPHEADER, header);
