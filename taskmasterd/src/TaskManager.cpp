@@ -1,8 +1,13 @@
 #include "TaskManager.hpp"
 
 #include <csignal>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <vector>
 #include <print>
 #include <ranges>
+#include <string>
 
 #include "Logger.hpp"
 #include "serializer.hpp"
@@ -91,6 +96,9 @@ void TaskManager::run() {
 			if (request.getUrl().size() == 3 && request.getUrl()[0] == "task" && request.getUrl()[2] == "stop") {
 				return this->_stopTask(request);
 			}
+			else if (request.getUrl().size() == 3 && request.getUrl()[0] == "task" && request.getUrl()[2] == "start") {
+				return this->_startTask(request);
+			}
 		}
 
 		return {"404", ""};
@@ -134,24 +142,118 @@ void TaskManager::run() {
 	server.run();
 }
 
-void TaskManager::startPrograms() {
-	auto logger = Logger::getInstance("Task master", stdout);
-	for (const auto& [name,task]: tasksConfs) {
-		int pid = fork();
-		if (pid == 0) {
-			execle("/bin/bash", "bash", "-c", task.cmd.c_str(), nullptr, environ);
-		} else {
-			auto id = RunningTaskId(name, 0);
-			runningTasks[id] = RunningTask(pid);
-			logger->write("Launching program: {}", name);
+static void configureTask(TaskConf task) {
+	if (task.umask.has_value()) {
+		umask(task.umask.value());
+	}
+
+	if (task.workdir.has_value()) {
+		if (chdir(task.workdir.value().c_str()) == -1) {
+			perror(("chdir to " + task.workdir.value()).c_str());
+			exit(1);
 		}
+	}
+
+	if (task.env.has_value()) {
+		for (const auto& [key, value] : task.env.value()) {
+			setenv(key.c_str(), value.c_str(), 1);
+		}
+	}
+
+	if (task.std_in.has_value()) {
+		int fd = open(task.std_in.value().c_str(), O_RDONLY);
+		if (fd == -1) {
+			perror(("open stdin for " + task.std_in.value()).c_str());
+			exit(1);
+		}
+		dup2(fd, STDIN_FILENO);
+		close(fd);
+	}
+
+	if (task.std_out.has_value()) {
+		int fd = open(task.std_out.value().c_str(), O_WRONLY | O_CREAT | O_APPEND, 0644);
+		if (fd == -1) {
+			perror(("open stdout for " + task.std_out.value()).c_str());
+			exit(1);
+		}
+		dup2(fd, STDOUT_FILENO);
+		close(fd);
+	}
+
+	if (task.std_err.has_value()) {
+		int fd = open(task.std_err.value().c_str(), O_WRONLY | O_CREAT | O_APPEND, 0644);
+		if (fd == -1) {
+			perror(("open stderr for " + task.std_err.value()).c_str());
+			exit(1);
+		}
+		dup2(fd, STDERR_FILENO);
+		close(fd);
+	}
+}
+
+void TaskManager::startPrograms() {
+	for (auto& [name, task] : tasksConfs) {
+		if (!task.getStartAtLaunch()) {
+			continue;
+		}
+
+		int num_procs = task.getNumProcs();
+		for (int i = 0; i < num_procs; ++i) {
+			startProgram(name, i);
+		}
+	}
+}
+
+void TaskManager::startProgram(const std::string& name, int index) {
+	auto logger = Logger::getInstance("Task master", stdout);
+	auto confIt = tasksConfs.find(name);
+
+	if (confIt == tasksConfs.end()) {
+		logger->write("Cannot start '{}': program not found in configuration", name);
+		return;
+	}
+
+	if (index < 0 || index >= confIt->second.getNumProcs()) {
+		logger->write("Cannot start '{}': invalid process index {}", name, index);
+		return;
+	}
+
+	RunningTaskId id(name, index);
+	if (runningTasks.find(id) != runningTasks.end()) {
+		if (runningTasks[id].status == running || runningTasks[id].status == starting) {
+			logger->write("Program already running: {}", name);
+			return;
+		}
+	}
+
+	startTask(name, index, confIt->second);
+}
+
+void TaskManager::startTask(const std::string& name, int index, const TaskConf& taskConf) {
+	auto logger = Logger::getInstance("Task master", stdout);
+	RunningTaskId id(name, index);
+
+	pid_t pid = fork();
+	if (pid == 0) {
+		configureTask(taskConf);
+		std::string shell = taskConf.getShell();
+
+		execle(shell.c_str(), shell.c_str(), "-c", taskConf.cmd.c_str(), nullptr, environ);
+
+		perror("execle");
+		exit(1);
+	} else if (pid > 0) {
+		runningTasks[id] = RunningTask(pid);
+		runningTasks[id].status = starting;
+		logger->write("Launching program: {}_{}", name, index);
+	} else {
+		perror("fork");
 	}
 }
 
 TaskManager::TaskManager() {}
 
 TaskManager::~TaskManager() = default;
-
 
 HttpResponse TaskManager::_getTaskDetails(const HttpRequest& request) {
 	if (request.getUrl().size() == 2) {
@@ -198,6 +300,48 @@ HttpResponse TaskManager::_stopTask(const HttpRequest& request) {
 	}
 
 	return {""};
+}
+
+
+HttpResponse TaskManager::_startTask(const HttpRequest& request) {
+	auto logger = Logger::getInstance("Task master", stdout);
+
+	const auto& url = request.getUrl();
+
+	if (url.size() != 3 || url[0] != "task" || url[2] != "start") {
+		return {"400", ""};
+	}
+
+	const std::string& name = url[1];
+	auto confIt = tasksConfs.find(name);
+
+	if (confIt == tasksConfs.end()) {
+		logger->write("Start request rejected: '{}' is not configured", name);
+		return {"404", "program is not configured"};
+	}
+
+	bool startedAtLeastOne = false;
+	int  alreadyRunning = 0;
+
+	for (int i = 0; i < confIt->second.getNumProcs(); ++i) {
+		RunningTaskId id(name, i);
+		auto          it = runningTasks.find(id);
+
+		if (it != runningTasks.end() && (it->second.status == running || it->second.status == starting)) {
+			++alreadyRunning;
+			continue;
+		}
+
+		startProgram(name, i);
+		startedAtLeastOne = true;
+	}
+
+	if (!startedAtLeastOne) {
+		logger->write("Start request ignored: '{}' already running ({} process(es))", name, alreadyRunning);
+		return {"403", "program already running"};
+	}
+
+	return {"Program started"};
 }
 
 void TaskManager::confHttpServer(ServerConf conf) {

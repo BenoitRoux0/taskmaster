@@ -65,7 +65,10 @@ void Server::run() {
 		const int events_count = epoll_wait(_epollFd, events, _sockets.size(), -1);
 
 		for (int i = 0; i < events_count; ++i) {
-			_sockets[events[i].data.fd]->handleEvent(events[i].events);
+			auto it = _sockets.find(events[i].data.fd);
+			if (it != _sockets.end() && it->second) {
+				it->second->handleEvent(events[i].events);
+			}
 		}
 
 		for (auto toRemove: _toRemove) {
