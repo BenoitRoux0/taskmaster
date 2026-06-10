@@ -31,12 +31,12 @@ public:
 
 	void bind(uint16_t port);
 
-	void registerSocket(std::shared_ptr<Socket> sock);
+	void registerSocket(const std::shared_ptr<Socket>& sock);
 
 	void sendResponse(int socket, const HttpResponse& response);
 	void endSending(int socket);
 	void handleHttpRequest(int socket, const HttpRequest& http_request);
-	void handleSignalRequest(const signalfd_siginfo& sig_request);
+	void handleSignalRequest(const signalfd_siginfo& sig_request) const;
 
 	void onHttpRequest(std::function<HttpResponse(HttpRequest)> callback);
 	void onChildRequest(std::function<void(signalfd_siginfo)> callback);

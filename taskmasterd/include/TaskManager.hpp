@@ -24,6 +24,10 @@ public:
 	void run();
 	void startPrograms();
 
+	HttpResponse _onHttpRequest(const HttpRequest& request);
+	void         _onChildRequest(const signalfd_siginfo& siginfo);
+	void         _onWakeUp(std::chrono::milliseconds delta);
+
 private:
 	Server      _server;
 	std::string _conf;

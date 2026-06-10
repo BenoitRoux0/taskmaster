@@ -42,48 +42,23 @@ void Server::run() {
 void Server::bind(uint16_t port) {
 	_epollFd = epoll_create(1024);
 
-	int acceptSocket = socket(AF_INET, SOCK_STREAM, 0);
+	auto listener = std::make_shared<HttpListener>(*this, port);
 
-	sockaddr_in sin{};
-
-	bzero(&sin, sizeof(sockaddr_in));
-
-	sin.sin_addr.s_addr = htonl(INADDR_ANY);
-	sin.sin_family = AF_INET;
-	sin.sin_port = htons(port);
-
-	if (::bind(acceptSocket, reinterpret_cast<sockaddr*>(&sin), sizeof(sin))) {
-		close(acceptSocket);
-		acceptSocket = -1;
+	if (!listener->isReady()) {
 		_ready = false;
 		return;
 	}
 
-	if (listen(acceptSocket, 64) == -1) {
-		close(acceptSocket);
-		acceptSocket = -1;
-		_ready = false;
-		return;
-	}
-
-	auto listener = std::make_shared<HttpListener>(*this, acceptSocket);
-	_sockets.insert(std::make_pair(acceptSocket, listener));
-
-	epoll_event event = { };
-
-	event.events = EPOLLIN;
-	event.data.ptr = listener.get();
-
-	epoll_ctl(_epollFd, EPOLL_CTL_ADD, acceptSocket, &event);
+	this->registerSocket(listener);
 
 	std::println("server port: {}", port);
 	_ready = true;
 }
 
-void Server::registerSocket(std::shared_ptr<Socket> sock) {
+void Server::registerSocket(const std::shared_ptr<Socket>& sock) {
 	epoll_event event = { };
 
-	event.events = EPOLLIN | EPOLLET | EPOLLRDHUP | EPOLLHUP;
+	event.events = EPOLLIN | EPOLLRDHUP | EPOLLHUP;
 	event.data.ptr = sock.get();
 
 	epoll_ctl(_epollFd, EPOLL_CTL_ADD, sock->getFd(), &event);
@@ -96,7 +71,7 @@ void Server::registerSocket(std::shared_ptr<Socket> sock) {
 void Server::sendResponse(const int socket, const HttpResponse& response) {
 	epoll_event event = { };
 
-	event.events = EPOLLIN | EPOLLET | EPOLLRDHUP | EPOLLHUP | EPOLLOUT;
+	event.events = EPOLLIN | EPOLLRDHUP | EPOLLHUP | EPOLLOUT;
 	event.data.ptr = _sockets[socket].get();
 
 	epoll_ctl(_epollFd, EPOLL_CTL_MOD, socket, &event);
@@ -107,7 +82,7 @@ void Server::sendResponse(const int socket, const HttpResponse& response) {
 void Server::endSending(const int socket) {
 	epoll_event event = { };
 
-	event.events = EPOLLIN | EPOLLET | EPOLLRDHUP | EPOLLHUP;
+	event.events = EPOLLIN | EPOLLRDHUP | EPOLLHUP;
 	event.data.ptr = _sockets[socket].get();
 
 	epoll_ctl(_epollFd, EPOLL_CTL_MOD, socket, &event);
@@ -122,7 +97,7 @@ void Server::handleHttpRequest(const int socket, const HttpRequest& http_request
 	this->sendResponse(socket, response);
 }
 
-void Server::handleSignalRequest(const signalfd_siginfo& sig_request) {
+void Server::handleSignalRequest(const signalfd_siginfo& sig_request) const {
 	_onChildRequest(sig_request);
 }
 

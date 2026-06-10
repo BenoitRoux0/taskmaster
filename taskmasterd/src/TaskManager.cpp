@@ -72,65 +72,11 @@ void TaskManager::run() {
 	if (!_server.isReady())
 		return;
 
-	_server.onHttpRequest([&](const HttpRequest& request) -> HttpResponse {
-		_logger.write("received: {}", request.getRawUrl());
+	_server.onHttpRequest([&](const auto& request) { return this->_onHttpRequest(request); });
 
-		if (request.getMethod() == "GET") {
-			if (request.getRawUrl() == "/tasks") {
-				std::vector<RunningTask> data{};
+	_server.onChildRequest([&](const auto& siginfo) { this->_onChildRequest(siginfo); });
 
-				for (const auto& task: _runningTasks | std::views::values) {
-					data.push_back(task);
-				}
-
-				return {stackixx::serialize(data)};
-			}
-			if (*request.getUrl().begin() == "task") {
-				return this->_getTaskDetails(request);
-			}
-		}
-
-		if (request.getMethod() == "POST") {
-			if (request.getUrl().size() == 3 && request.getUrl()[0] == "task" && request.getUrl()[2] == "stop") {
-				return this->_stopTask(request);
-			}
-		}
-
-		return {"404", ""};
-	});
-
-	_server.onChildRequest([&](const signalfd_siginfo& siginfo) {
-		int pid = 1;
-		int status;
-
-		switch (siginfo.ssi_signo) {
-			case SIGCHLD:
-				_logger.write("A child is dead");
-				while (pid > 0) {
-					pid = waitpid(-1, &status, WNOHANG);
-
-					if (pid > 0)
-						this->handleDeath(pid, status);
-				}
-				break;
-			case SIGHUP:
-				this->loadConf(std::nullopt);
-				break;
-			case SIGTERM:
-			case SIGINT:
-				this->stop();
-				break;
-		}
-	});
-
-	_server.onWakeUp([&](std::chrono::milliseconds delta) {
-		for (auto taskId: _stoppingTasks) {
-			if (_runningTasks[taskId].decreaseStopTime(delta)) {
-				kill(_runningTasks[taskId]._pid, SIGKILL);
-			}
-		}
-	});
-
+	_server.onWakeUp([&](auto delta) { this->_onWakeUp(delta); });
 
 	sigset_t set;
 	sigemptyset(&set);
@@ -159,6 +105,65 @@ void TaskManager::startPrograms() {
 	}
 }
 
+HttpResponse TaskManager::_onHttpRequest(const HttpRequest& request) {
+	_logger.write("received: {}", request.getRawUrl());
+
+	if (request.getMethod() == "GET") {
+		if (request.getRawUrl() == "/tasks") {
+			std::vector<RunningTask> data{};
+
+			for (const auto& task: _runningTasks | std::views::values) {
+				data.push_back(task);
+			}
+
+			return {stackixx::serialize(data)};
+		}
+		if (*request.getUrl().begin() == "task") {
+			return this->_getTaskDetails(request);
+		}
+	}
+
+	if (request.getMethod() == "POST") {
+		if (request.getUrl().size() == 3 && request.getUrl()[0] == "task" && request.getUrl()[2] == "stop") {
+			return this->_stopTask(request);
+		}
+	}
+
+	return {"404", ""};
+}
+
+void TaskManager::_onChildRequest(const signalfd_siginfo& siginfo) {
+	int pid = 1;
+	int status;
+
+	switch (siginfo.ssi_signo) {
+		case SIGCHLD:
+			_logger.write("A child is dead");
+			while (pid > 0) {
+				pid = waitpid(-1, &status, WNOHANG);
+
+				if (pid > 0)
+					this->handleDeath(pid, status);
+			}
+			break;
+		case SIGHUP:
+			this->loadConf(std::nullopt);
+			break;
+		case SIGTERM:
+		case SIGINT:
+			this->stop();
+			break;
+	}
+}
+
+void TaskManager::_onWakeUp(std::chrono::milliseconds delta) {
+	for (auto taskId: _stoppingTasks) {
+		if (_runningTasks[taskId].decreaseStopTime(delta)) {
+			kill(_runningTasks[taskId]._pid, SIGKILL);
+		}
+	}
+}
+
 TaskManager::TaskManager() = default;
 
 TaskManager::~TaskManager() = default;
@@ -166,7 +171,7 @@ TaskManager::~TaskManager() = default;
 
 HttpResponse TaskManager::_getTaskDetails(const HttpRequest& request) {
 	if (request.getUrl().size() == 2) {
-		auto name = request.getUrl()[1];
+		auto                     name = request.getUrl()[1];
 		std::vector<RunningTask> tasks{};
 
 		for (const auto& [id, task]: _runningTasks) {
