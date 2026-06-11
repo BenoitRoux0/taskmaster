@@ -22,8 +22,14 @@ void Server::run() {
 		const int events_count = epoll_wait(_epollFd, events, _sockets.size(), 1000);
 
 		for (int i = 0; i < events_count; ++i) {
-			auto* socket = static_cast<Socket*>(events[i].data.ptr);
-			socket->handleEvent(events[i].events);
+			int fd = events[i].data.fd;
+			auto it = _sockets.find(fd);
+
+			if (it != _sockets.end() && it->second) {
+				it->second->handleEvent(events[i].events);
+			} else {
+				epoll_ctl(_epollFd, EPOLL_CTL_DEL, fd, nullptr);
+			}
 		}
 
 		for (auto toRemove: _toRemove) {
@@ -59,7 +65,7 @@ void Server::registerSocket(const std::shared_ptr<Socket>& sock) {
 	epoll_event event = { };
 
 	event.events = EPOLLIN | EPOLLRDHUP | EPOLLHUP;
-	event.data.ptr = sock.get();
+	event.data.fd = sock->getFd();
 
 	epoll_ctl(_epollFd, EPOLL_CTL_ADD, sock->getFd(), &event);
 
@@ -72,22 +78,30 @@ void Server::sendResponse(const int socket, const HttpResponse& response) {
 	epoll_event event = { };
 
 	event.events = EPOLLIN | EPOLLRDHUP | EPOLLHUP | EPOLLOUT;
-	event.data.ptr = _sockets[socket].get();
+	event.data.fd = socket;
 
 	epoll_ctl(_epollFd, EPOLL_CTL_MOD, socket, &event);
+	auto itSocket = _sockets.find(socket);
+	if (itSocket == _sockets.end() || !itSocket->second) {
+		return;
+	}
 
-	_sockets[socket]->send(response.toString());
+	itSocket->second->send(response.toString());
 }
 
 void Server::endSending(const int socket) {
 	epoll_event event = { };
 
 	event.events = EPOLLIN | EPOLLRDHUP | EPOLLHUP;
-	event.data.ptr = _sockets[socket].get();
+	event.data.fd = socket;
 
 	epoll_ctl(_epollFd, EPOLL_CTL_MOD, socket, &event);
+	auto itSocket = _sockets.find(socket);
+	if (itSocket == _sockets.end() || !itSocket->second) {
+		return;
+	}
 
-	if (!_sockets[socket]->keepAlive()) {
+	if (!itSocket->second->keepAlive()) {
 		remove(socket);
 	}
 }
