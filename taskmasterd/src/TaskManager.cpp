@@ -1,6 +1,8 @@
 #include "TaskManager.hpp"
 
 #include <csignal>
+#include <chrono>
+#include <cerrno>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/stat.h>
@@ -21,6 +23,108 @@ void TaskManager::loadConf(const std::optional<std::string>& confFile) {
 		auto confParsed = toml::parse(_conf, toml::spec::v(1, 1, 0));
 
 		_tasksConfs = toml::find<std::map<std::string, TaskConf>>(confParsed, "programs");
+	} catch (toml::syntax_error& e) {
+		std::print("{}", e.what());
+	}
+}
+
+void TaskManager::stopAndRemove(const std::string& name, const TaskConf& conf) {
+	std::vector<RunningTaskId> ids;
+	for (const auto& [id, task]: _runningTasks) {
+		if (id._name == name && (task.status == running || task.status == starting
+			|| task.status == expected || task.status == unexpected))
+			ids.push_back(id);
+	}
+
+	for (const auto& id: ids) {
+		auto it = _runningTasks.find(id);
+		if (it == _runningTasks.end())
+			continue;
+
+		const pid_t pid = it->second._pid;
+		if (pid > 0) {
+			kill(pid, conf.getStopSig());
+			auto deadline = std::chrono::steady_clock::now() + conf.getStopTime();
+			int  status = 0;
+
+			while (true) {
+				pid_t result = waitpid(pid, &status, WNOHANG);
+				if (result == pid || (result == -1 && errno == ECHILD))
+					break;
+				if (result == -1 && errno == EINTR)
+					continue;
+				if (std::chrono::steady_clock::now() >= deadline) {
+					kill(pid, SIGKILL);
+					for (;;) {
+						result = waitpid(pid, &status, 0);
+						if (result == pid || (result == -1 && errno == ECHILD))
+							break;
+						if (result == -1 && errno == EINTR)
+							continue;
+						break;
+					}
+					break;
+				}
+				usleep(10000);
+			}
+		}
+
+		_stoppingTasks.erase(id);
+		_runningTasks.erase(it);
+	}
+};
+
+static bool sameConf (const TaskConf& a, const TaskConf& b) {
+	return a.cmd == b.cmd && a.num_procs == b.num_procs && a.start_at_launch == b.start_at_launch
+		   && a.restart == b.restart && a.exit_codes == b.exit_codes && a.start_time == b.start_time
+		   && a.retries == b.retries && a.stop_sig == b.stop_sig && a.stop_time == b.stop_time
+		   && a.std_in == b.std_in && a.std_out == b.std_out && a.std_err == b.std_err
+		   && a.workdir == b.workdir && a.umask == b.umask && a.shell == b.shell && a.env == b.env;
+};
+
+void TaskManager::reloadConf(const std::optional<std::string>& confFile) {
+	try {
+		std::string confPath = _conf;
+		if (confFile.has_value())
+			confPath = confFile.value();
+
+		auto newConfParsed = toml::parse(confPath, toml::spec::v(1, 1, 0));
+		auto newTasksConfs = toml::find<std::map<std::string, TaskConf>>(newConfParsed, "programs");
+
+		std::vector<std::string> removed;
+		for (const auto& [name, _]: _tasksConfs) {
+			if (newTasksConfs.find(name) == newTasksConfs.end())
+				removed.push_back(name);
+		}
+
+		for (const auto& name: removed) {
+			_logger.write("Program '{}' removed from configuration, stopping all processes", name);
+			stopAndRemove(name, _tasksConfs.at(name));
+			_tasksConfs.erase(name);
+		}
+
+		for (auto& [name, newConf]: newTasksConfs) {
+			auto oldConfIt = _tasksConfs.find(name);
+
+			if (oldConfIt == _tasksConfs.end()) {
+				_logger.write("Program '{}' added to configuration", name);
+				_tasksConfs[name] = newConf;
+
+				int numProcs = newConf.getNumProcs();
+				for (int i = 0; i < numProcs; ++i)
+					startProgram(name, i);
+
+			} else if (!sameConf(oldConfIt->second, newConf)) {
+				_logger.write("Program '{}' configuration changed, restarting", name);
+				stopAndRemove(name, oldConfIt->second);
+				_tasksConfs[name] = newConf;
+
+				int numProcs = newConf.getNumProcs();
+				for (int i = 0; i < numProcs; ++i)
+					startProgram(name, i);
+			}
+		}
+
 	} catch (toml::syntax_error& e) {
 		std::print("{}", e.what());
 	}
@@ -119,7 +223,10 @@ HttpResponse TaskManager::_onHttpRequest(const HttpRequest& request) {
 			return this->_stopTask(request);
 		} else if (request.getUrl().size() == 3 && request.getUrl()[0] == "task" && request.getUrl()[2] == "start") {
 			return this->_startTask(request);
+		} else if (request.getUrl().size() == 1 && request.getUrl()[0] == "reload") {
+			return this->_reloadConf(request);
 		}
+
 	}
 
 	return {"404", ""};
@@ -354,4 +461,14 @@ HttpResponse TaskManager::_startTask(const HttpRequest& request) {
 	}
 
 	return {"Program started"};
+}
+
+HttpResponse TaskManager::_reloadConf(const HttpRequest& request) {
+	const auto& url = request.getUrl();
+
+	if (url.size() != 1) {
+		return {"400", ""};
+	}
+	reloadConf("./conf.toml");
+	return {"Conf reloaded"};
 }
