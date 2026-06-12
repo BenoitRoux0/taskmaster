@@ -2,7 +2,6 @@
 
 #include <csignal>
 #include <chrono>
-#include <cerrno>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/stat.h>
@@ -49,23 +48,23 @@ void TaskManager::stopAndRemove(const std::string& name, const TaskConf& conf) {
 
 			while (true) {
 				pid_t result = waitpid(pid, &status, WNOHANG);
-				if (result == pid || (result == -1 && errno == ECHILD))
+				if (result == pid || result == -1)
 					break;
-				if (result == -1 && errno == EINTR)
+				if (result == -1)
 					continue;
 				if (std::chrono::steady_clock::now() >= deadline) {
 					kill(pid, SIGKILL);
 					for (;;) {
 						result = waitpid(pid, &status, 0);
-						if (result == pid || (result == -1 && errno == ECHILD))
+						if (result == pid || result == -1)
 							break;
-						if (result == -1 && errno == EINTR)
+						if (result == -1)
 							continue;
 						break;
 					}
 					break;
 				}
-				usleep(10000);
+				usleep(5000);
 			}
 		}
 
