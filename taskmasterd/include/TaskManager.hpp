@@ -18,8 +18,10 @@ public:
 	~TaskManager();
 
 	void loadConf(const std::optional<std::string>& confFile);
+	void reloadConf(const std::optional<std::string>& confFile);
 	void stop();
 	void handleDeath(pid_t pid, int32_t status);
+	void stopAndRemove(const std::string& name, const TaskConf& conf);
 
 	void run();
 	void startPrograms();
@@ -36,12 +38,13 @@ private:
 	HttpResponse _getTaskDetails(const HttpRequest& request);
 	HttpResponse _stopTask(const HttpRequest& request);
 	HttpResponse _startTask(const HttpRequest& request);
+	HttpResponse _reloadConf(const HttpRequest& request);
 
 	Logger _logger{};
 
-	std::set<RunningTaskId>              _stoppingTasks{};
-	std::map<std::string, TaskConf>      _tasksConfs{};
-	std::map<RunningTaskId, RunningTask> _runningTasks{};
+	std::set<RunningTaskId>					_stoppingTasks{};
+	std::map<std::string, TaskConf>			_tasksConfs{};
+	std::map<RunningTaskId, RunningTask>	_runningTasks{};
 
 	void startTask(const std::string& name, int index, const TaskConf& taskConf);
 };
