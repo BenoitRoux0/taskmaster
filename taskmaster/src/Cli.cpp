@@ -39,7 +39,19 @@ std::optional<int> Cli::handleCommand(const Command& cmd) {
         case commandType::NOTHING:
             break;
         case commandType::EXIT:
-            return 0;
+            if (!cmd.args.empty() && cmd.args.size() == 1) {
+                if (cmd.args[0] == "cli") {
+                    return 0;
+                } else if (cmd.args[0] == "daemon") {
+                    response = _client.post("exit", "");
+                    std::cout << response << std::endl;
+                } else {
+                    std::println("Exit requires one argument: 'daemon' or 'cli'");
+                }
+            } else {
+                std::println("Exit requires either 'daemon' or 'cli'");
+            }
+            break;
         case commandType::STATUS:
             if (!cmd.args.empty()) {
                 for (const std::string& arg : cmd.args) {
