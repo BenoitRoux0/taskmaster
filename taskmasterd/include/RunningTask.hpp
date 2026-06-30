@@ -3,6 +3,7 @@
 #include <chrono>
 
 enum deathStatus {
+	stopped,
 	starting,
 	running,
 	stopping,

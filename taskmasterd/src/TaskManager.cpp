@@ -31,7 +31,7 @@ void TaskManager::stopAndRemove(const std::string& name, const TaskConf& conf) {
 	std::vector<RunningTaskId> ids;
 	for (const auto& [id, task]: _runningTasks) {
 		if (id._name == name && (task.status == running || task.status == starting
-			|| task.status == expected || task.status == unexpected))
+			|| task.status == expected || task.status == unexpected || task.status == stopped))
 			ids.push_back(id);
 	}
 
@@ -110,8 +110,15 @@ void TaskManager::reloadConf(const std::optional<std::string>& confFile) {
 				_tasksConfs[name] = newConf;
 
 				int numProcs = newConf.getNumProcs();
-				for (int i = 0; i < numProcs; ++i)
-					startProgram(name, i);
+				for (int i = 0; i < numProcs; ++i) {
+					if (newConf.getStartAtLaunch()) {
+						startProgram(name, i);
+					} else {
+						RunningTaskId id(name, i);
+						_runningTasks[id] = RunningTask{};
+						_runningTasks[id].status = stopped;
+					}
+				}
 
 			} else if (!sameConf(oldConfIt->second, newConf)) {
 				_logger.write("Program '{}' configuration changed, restarting", name);
@@ -119,8 +126,15 @@ void TaskManager::reloadConf(const std::optional<std::string>& confFile) {
 				_tasksConfs[name] = newConf;
 
 				int numProcs = newConf.getNumProcs();
-				for (int i = 0; i < numProcs; ++i)
-					startProgram(name, i);
+				for (int i = 0; i < numProcs; ++i) {
+					if (newConf.getStartAtLaunch()) {
+						startProgram(name, i);
+					} else {
+						RunningTaskId id(name, i);
+						_runningTasks[id] = RunningTask{};
+						_runningTasks[id].status = stopped;
+					}
+				}
 			}
 		}
 
@@ -306,11 +320,15 @@ static void configureTask(TaskConf task) {
 
 void TaskManager::startPrograms() {
 	for (auto& [name, task]: _tasksConfs) {
+		int num_procs = task.getNumProcs();
 		if (!task.getStartAtLaunch()) {
+			for (int i = 0; i < num_procs; ++i) {
+				RunningTaskId id(name, i);
+				_runningTasks[id] = RunningTask{};
+				_runningTasks[id].status = stopped;
+			}
 			continue;
 		}
-
-		int num_procs = task.getNumProcs();
 		for (int i = 0; i < num_procs; ++i) {
 			startProgram(name, i);
 		}
