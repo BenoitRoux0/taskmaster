@@ -21,20 +21,21 @@ public:
 	std::chrono::time_point<std::chrono::local_t, std::chrono::nanoseconds> getStart() const;
 	std::chrono::time_point<std::chrono::local_t, std::chrono::nanoseconds> getEnd() const;
 
-	void dead();
+	void dead(std::chrono::time_point<std::chrono::local_t, std::chrono::nanoseconds> time);
 
 	// private:
 	pid_t   _pid{-1};
 	int     status{running};
 	int32_t procStatus{0};
 
-	std::chrono::time_point<std::chrono::local_t, std::chrono::nanoseconds> start;
-	std::chrono::time_point<std::chrono::local_t, std::chrono::nanoseconds> end;
 
 	void setStopTime(std::chrono::milliseconds ms);
 	bool decreaseStopTime(std::chrono::milliseconds ms);
 
 private:
+	std::chrono::time_point<std::chrono::local_t, std::chrono::nanoseconds> start;
+	std::chrono::time_point<std::chrono::local_t, std::chrono::nanoseconds> end;
+
 	std::chrono::milliseconds remainingStopTime{-1};
 };
 

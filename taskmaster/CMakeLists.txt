@@ -30,6 +30,8 @@ target_link_libraries(taskmaster
         PRIVATE
         readline
         CURL::libcurl
+        common
+        serial::serial
 )
 
 install(TARGETS taskmaster

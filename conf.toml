@@ -26,6 +26,7 @@ env = { HELLO = "World", TEST = "Mars" }
 
 [programs."sleeper"]
 cmd = "sleep 30"
+num_procs = 3
 
 [programs."sleeper_failed"]
 cmd = "sleep 30"

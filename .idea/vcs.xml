@@ -2,7 +2,5 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/cmake-build-debug-gcc-16.1/_deps/toml11-src" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/cmake-build-release-gcc-16.1/_deps/toml11-src" vcs="Git" />
   </component>
 </project>

@@ -5,12 +5,12 @@
 # include <cstdint>
 
 struct ClientConfig {
-    std::string host {"localhost"};
-    uint16_t    port {12345};
+	std::string host{"localhost"};
+	uint16_t    port{1234};
 
-    std::string getBaseUrl() const {
-        return "http://" + host + ":" + std::to_string(port) + "/";
-    }
+	std::string getBaseUrl() const {
+		return "http://" + host + ":" + std::to_string(port) + "/";
+	}
 };
 
 #endif //TASKMASTER_CLIENTCONFIG_HPP
