@@ -503,6 +503,6 @@ HttpResponse TaskManager::_exitDaemon(const HttpRequest& request) {
 		stopAndRemove(name, conf);
 	}
 
-	this->stop();
+	_server.stopAfterSend();
 	return {"Daemon stopped"};
 }
