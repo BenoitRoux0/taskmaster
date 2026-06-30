@@ -21,6 +21,7 @@ class Server {
 	std::function<void(std::chrono::milliseconds)> _onWakeUp;
 	std::vector<int>                               _toRemove;
 	bool                                           _stop{false};
+	bool                                           _stopAfterSend{false};
 	bool                                           _ready{false};
 
 public:
@@ -43,6 +44,7 @@ public:
 	void onWakeUp(std::function<void(std::chrono::milliseconds)> callback);
 
 	void stop();
+	void stopAfterSend();
 	void remove(int socket);
 	void clearConnections();
 

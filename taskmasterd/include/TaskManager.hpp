@@ -39,6 +39,7 @@ private:
 	HttpResponse _stopTask(const HttpRequest& request);
 	HttpResponse _startTask(const HttpRequest& request);
 	HttpResponse _reloadConf(const HttpRequest& request);
+	HttpResponse _exitDaemon(const HttpRequest& request);
 
 	Logger _logger{};
 

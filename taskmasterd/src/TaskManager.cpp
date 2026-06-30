@@ -234,10 +234,12 @@ HttpResponse TaskManager::_onHttpRequest(const HttpRequest& request) {
 	if (request.getMethod() == "POST") {
 		if (request.getUrl().size() == 3 && request.getUrl()[0] == "task" && request.getUrl()[2] == "stop") {
 			return this->_stopTask(request);
-		} else if (request.getUrl().size() == 3 && request.getUrl()[0] == "task" && request.getUrl()[2] == "start") {
+		} if (request.getUrl().size() == 3 && request.getUrl()[0] == "task" && request.getUrl()[2] == "start") {
 			return this->_startTask(request);
-		} else if (request.getUrl().size() == 1 && request.getUrl()[0] == "reload") {
+		} if (request.getUrl().size() == 1 && request.getUrl()[0] == "reload") {
 			return this->_reloadConf(request);
+		} if (request.getUrl().size() == 1 && request.getUrl()[0] == "exit") {
+			return this->_exitDaemon(request);
 		}
 
 	}
@@ -488,4 +490,19 @@ HttpResponse TaskManager::_reloadConf(const HttpRequest& request) {
 	}
 	reloadConf("./conf.toml");
 	return {"Conf reloaded"};
+}
+
+HttpResponse TaskManager::_exitDaemon(const HttpRequest& request) {
+	const auto& url = request.getUrl();
+
+	if (url.size() != 1) {
+		return {"400", ""};
+	}
+
+	for (const auto& [name, conf] : _tasksConfs) {
+		stopAndRemove(name, conf);
+	}
+
+	_server.stopAfterSend();
+	return {"Daemon stopped"};
 }
