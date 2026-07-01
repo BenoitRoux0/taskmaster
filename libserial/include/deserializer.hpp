@@ -7,6 +7,7 @@
 #include "deserializers/deserializeArray.hpp"
 #include "deserializers/deserializeMap.hpp"
 #include "deserializers/deserializeObject.hpp"
+#include "deserializers/deserializeEnum.hpp"
 
 #include "utils.hpp"
 
@@ -16,12 +17,11 @@ namespace stackixx {
 
 	template <typename T>
 	T deserialize(const char* value, char** end) {
-		constexpr bool is_map = isMap<T>;
-		constexpr bool is_iterable = isIterable<T>;
-
-		if constexpr (is_map) {
+		if constexpr (std::is_enum_v<T>) {
+			return deserializeEnum<T>(value, end);
+		} else if constexpr (isMap<T>) {
 			return deserializeMap<T>(value, end);
-		} else if constexpr (is_iterable) {
+		} else if constexpr (isIterable<T>) {
 			return deserializeArray<T>(value, end);
 		} else {
 			return deserializeObject<T>(value, end);
@@ -93,5 +93,6 @@ namespace stackixx {
 #include "deserializers/deserializeArray.tpp"
 #include "deserializers/deserializeMap.tpp"
 #include "deserializers/deserializeObject.tpp"
+#include "deserializers/deserializeEnum.tpp"
 
 #endif // SERIALIZER_HPP

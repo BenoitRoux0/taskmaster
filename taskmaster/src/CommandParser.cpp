@@ -19,7 +19,7 @@ static std::string trim(const std::string& input) {
 	return str2;
 }
 
-Command CommandParser::parseInput(const std::string& input) {
+std::expected<Command, std::string> CommandParser::parseInput(const std::string& input) {
 	Command		cmd{};
 	std::string trimmed = trim(input);
 	if (trimmed.empty()) {
@@ -40,7 +40,9 @@ Command CommandParser::parseInput(const std::string& input) {
 		cmd.args.push_back(arg);
 	}
 
-	if (commandStr == "status") {
+	if (commandStr == "help") {
+		cmd.type = commandType::HELP;
+	} else if (commandStr == "status") {
 		cmd.type = commandType::STATUS;
 	} else if (commandStr == "start") {
 		cmd.type = commandType::START;
@@ -53,7 +55,7 @@ Command CommandParser::parseInput(const std::string& input) {
 	} else if (commandStr == "exit") {
 		cmd.type = commandType::EXIT;
 	} else {
-		throw std::invalid_argument("Unknown command: " + commandStr);
+		return std::unexpected(std::format("Unknown command: {}", commandStr));
 	}
 
 	return cmd;

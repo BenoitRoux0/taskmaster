@@ -18,9 +18,6 @@ set(LLHTTP_BUILD_SHARED_LIBS OFF CACHE INTERNAL "")
 set(LLHTTP_BUILD_STATIC_LIBS ON CACHE INTERNAL "")
 FetchContent_MakeAvailable(llhttp)
 
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../common ${CMAKE_CURRENT_BINARY_DIR}/common)
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../libserial ${CMAKE_CURRENT_BINARY_DIR}/libserial)
-
 add_executable(taskmasterd
     main.cpp
         src/Server.cpp
@@ -44,7 +41,6 @@ target_compile_options(taskmasterd PUBLIC -Wall -Wextra -Werror)
 target_include_directories(taskmasterd PRIVATE include)
 
 target_link_libraries(taskmasterd
-    PRIVATE
         toml11::toml11
         llhttp_static
         common

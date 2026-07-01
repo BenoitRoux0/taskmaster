@@ -16,8 +16,8 @@ std::chrono::time_point<std::chrono::local_t, std::chrono::nanoseconds> RunningT
 	return end;
 }
 
-void RunningTask::dead() {
-	end = std::chrono::current_zone()->to_local(std::chrono::system_clock::now());
+void RunningTask::dead(std::chrono::time_point<std::chrono::local_t, std::chrono::nanoseconds> time) {
+	end = time;
 }
 
 void RunningTask::setStopTime(const std::chrono::milliseconds ms) {
