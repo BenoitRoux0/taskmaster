@@ -22,6 +22,8 @@ public:
 	bool keepAlive() override;
 
 	HttpRequestBuilder request_builder;
+
+	~HttpSessionSocket() override;
 };
 
 #endif // HTTP_SESSION_SOCKET_HPP

@@ -36,7 +36,7 @@ std::string HttpClient::buildUrl(const std::string& path, std::string arg) const
 	if (path == "start" || path == "stop" || path == "restart") {
 		fullUrl = _config.getBaseUrl() + "task/" + arg + "/" + path;
 	}
-	else if (path == "reload" || path == "kill") {
+	else if (path == "reload" || path == "exit") {
 		fullUrl = _config.getBaseUrl() + path;
 	}
 	else if (path == "tasks") {
@@ -52,63 +52,37 @@ void HttpClient::resetCurl() {
 	curl_easy_reset(_curl);
 	curl_easy_setopt(_curl, CURLOPT_WRITEFUNCTION, writeCallback);
 }
-
-std::string HttpClient::get(const std::string& url, const std::string& arg) {
-	std::string	response;
-	long		httpCode;
-
-	resetCurl();
-
-	std::string fullUrl = buildUrl(url, arg);
-	// curl_easy_setopt(_curl, CURLOPT_VERBOSE, 1L); to check connexion is maintained on server
-	curl_easy_setopt(_curl, CURLOPT_URL, fullUrl.c_str());
-	curl_easy_setopt(_curl, CURLOPT_HTTPGET, 1L);
-	curl_easy_setopt(_curl, CURLOPT_WRITEFUNCTION, writeCallback);
-	curl_easy_setopt(_curl, CURLOPT_WRITEDATA, &response);
-
-	CURLcode res = curl_easy_perform(_curl);
-	if (res != CURLE_OK) {
-		throw std::runtime_error(std::string("CURL error: ") + curl_easy_strerror(res));
-	}
-
-	curl_easy_getinfo(_curl, CURLINFO_RESPONSE_CODE, &httpCode);
-	if (httpCode != 200) {
-		throw std::runtime_error("HTTP request failed with code: " + std::to_string(httpCode));
-	}
-
-	return response;
-}
-
-std::string HttpClient::post(const std::string& url, const std::string& arg) {
-	std::string	response;
-	long		httpCode;
-
-	resetCurl();
-
-	curl_slist* header = nullptr;
-	header = curl_slist_append(header, "Content-Type: application/json");
-
-	std::string fullUrl = buildUrl(url, arg);
-	// curl_easy_setopt(_curl, CURLOPT_VERBOSE, 1L); to check connexion is maintained on server
-	curl_easy_setopt(_curl, CURLOPT_URL, fullUrl.c_str());
-	curl_easy_setopt(_curl, CURLOPT_POST, 1L);
-	curl_easy_setopt(_curl, CURLOPT_HTTPHEADER, header);
-	curl_easy_setopt(_curl, CURLOPT_POSTFIELDS, arg.c_str());
-	curl_easy_setopt(_curl, CURLOPT_POSTFIELDSIZE, arg.length());
-	curl_easy_setopt(_curl, CURLOPT_WRITEFUNCTION, writeCallback);
-	curl_easy_setopt(_curl, CURLOPT_WRITEDATA, &response);
-
-	CURLcode res = curl_easy_perform(_curl);
-	curl_slist_free_all(header);
-
-	if (res != CURLE_OK) {
-		throw std::runtime_error(curl_easy_strerror(res));
-	}
-
-	curl_easy_getinfo(_curl, CURLINFO_RESPONSE_CODE, &httpCode);
-	if (httpCode != 200) {
-		throw std::runtime_error("HTTP request failed with code: " + std::to_string(httpCode));
-	}
-
-	return response;
-}
+//
+// std::string HttpClient::post(const std::string& url, const std::string& arg) {
+// 	std::string	response;
+// 	long		httpCode;
+//
+// 	resetCurl();
+//
+// 	curl_slist* header = nullptr;
+// 	header = curl_slist_append(header, "Content-Type: application/json");
+//
+// 	std::string fullUrl = buildUrl(url, arg);
+// 	// curl_easy_setopt(_curl, CURLOPT_VERBOSE, 1L); to check connexion is maintained on server
+// 	curl_easy_setopt(_curl, CURLOPT_URL, fullUrl.c_str());
+// 	curl_easy_setopt(_curl, CURLOPT_POST, 1L);
+// 	curl_easy_setopt(_curl, CURLOPT_HTTPHEADER, header);
+// 	curl_easy_setopt(_curl, CURLOPT_POSTFIELDS, arg.c_str());
+// 	curl_easy_setopt(_curl, CURLOPT_POSTFIELDSIZE, arg.length());
+// 	curl_easy_setopt(_curl, CURLOPT_WRITEFUNCTION, writeCallback);
+// 	curl_easy_setopt(_curl, CURLOPT_WRITEDATA, &response);
+//
+// 	CURLcode res = curl_easy_perform(_curl);
+// 	curl_slist_free_all(header);
+//
+// 	if (res != CURLE_OK) {
+// 		throw std::runtime_error(curl_easy_strerror(res));
+// 	}
+//
+// 	curl_easy_getinfo(_curl, CURLINFO_RESPONSE_CODE, &httpCode);
+// 	if (httpCode != 200) {
+// 		throw std::runtime_error("HTTP request failed with code: " + std::to_string(httpCode));
+// 	}
+//
+// 	return response;
+// }

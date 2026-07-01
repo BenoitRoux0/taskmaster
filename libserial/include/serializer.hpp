@@ -11,6 +11,7 @@
 #include "serializers/serializeArray.hpp"
 #include "serializers/serializeMap.hpp"
 #include "serializers/serializeObject.hpp"
+#include "serializers/serializeEnum.hpp"
 
 namespace stackixx {
 	template <typename T>
@@ -18,7 +19,9 @@ namespace stackixx {
 
 	template <typename T>
 	std::string serialize(const T& value, size_t indent) {
-		if constexpr (isMap<T>) {
+		if constexpr (std::is_enum_v<T>) {
+			return serializeEnum(value, indent);
+		} else if constexpr (isMap<T>) {
 			return serializeMap<T>(value, indent);
 		} else if constexpr (isIterable<T>) {
 			return serializeArray<T>(value, indent);
@@ -46,15 +49,11 @@ namespace stackixx {
 	inline std::string serialize<bool>(const bool& value, [[maybe_unused]] size_t indent) {
 		return value ? "true" : "false";
 	}
-
-	template <>
-	inline std::string serialize<std::chrono::time_point<std::chrono::local_t, std::chrono::nanoseconds>>(const std::chrono::time_point<std::chrono::local_t, std::chrono::nanoseconds>& value, [[maybe_unused]] size_t indent) {
-		return std::format("{:%FT%T}", value);
-	}
 } // namespace stackixx
 
 #include "serializers/serializeArray.tpp"
 #include "serializers/serializeMap.tpp"
 #include "serializers/serializeObject.tpp"
+#include "serializers/serializeEnum.tpp"
 
 #endif // SERIALZER_HPP

@@ -20,6 +20,8 @@ namespace stackixx {
 
 		while (*ptr != '\0' && *ptr != ']') {
 			skipWhitespaces(ptr);
+			if (*ptr == ']')
+				continue;
 			char* new_ptr;
 			out.push_back(deserialize<typename T::value_type>(ptr, &new_ptr));
 			ptr = new_ptr;
