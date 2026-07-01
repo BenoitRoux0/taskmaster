@@ -66,8 +66,8 @@ std::optional<int> Cli::handleCommand(const Command& cmd) {
                 if (cmd.args[0] == "cli") {
                     return 0;
                 } else if (cmd.args[0] == "daemon") {
-                    response = _client.post("exit", "");
-                    std::cout << response << std::endl;
+                	res = _client.post<std::string>("/exit");
+                	std::cout << res.value_or(res.error()) << std::endl;
                 } else {
                     std::println("Exit requires one argument: 'daemon' or 'cli'");
                 }
