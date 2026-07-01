@@ -77,7 +77,7 @@ std::optional<int> Cli::handleCommand(const Command& cmd) {
         case commandType::RESTART:
             if (!cmd.args.empty()) {
                 for (const std::string& arg : cmd.args) {
-                    response = _client.post("restart", "{\"id\":\"" + arg + "\"}");
+                    response = _client.post("restart", arg);
                     std::cout << response << std::endl;
                 }
             }

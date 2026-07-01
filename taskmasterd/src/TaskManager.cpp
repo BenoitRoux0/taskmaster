@@ -50,8 +50,6 @@ void TaskManager::stopAndRemove(const std::string& name, const TaskConf& conf) {
 				pid_t result = waitpid(pid, &status, WNOHANG);
 				if (result == pid || result == -1)
 					break;
-				if (result == -1)
-					continue;
 				if (std::chrono::steady_clock::now() >= deadline) {
 					kill(pid, SIGKILL);
 					for (;;) {
@@ -236,6 +234,8 @@ HttpResponse TaskManager::_onHttpRequest(const HttpRequest& request) {
 			return this->_stopTask(request);
 		} else if (request.getUrl().size() == 3 && request.getUrl()[0] == "task" && request.getUrl()[2] == "start") {
 			return this->_startTask(request);
+		} else if (request.getUrl().size() == 3 && request.getUrl()[0] == "task" && request.getUrl()[2] == "restart") {
+			return this->_restartTask(request);
 		} else if (request.getUrl().size() == 1 && request.getUrl()[0] == "reload") {
 			return this->_reloadConf(request);
 		}
@@ -478,6 +478,31 @@ HttpResponse TaskManager::_startTask(const HttpRequest& request) {
 	}
 
 	return {"Program started"};
+}
+
+HttpResponse TaskManager::_restartTask(const HttpRequest& request) {
+	if (request.getUrl().size() != 3) {
+		return {"400", ""};
+	}
+
+	const std::string& name = request.getUrl()[1];
+	auto confIt = _tasksConfs.find(name);
+
+	if (confIt == _tasksConfs.end()) {
+		_logger.write("Restart request rejected: '{}' is not configured", name);
+		return {"404", "program is not configured"};
+	}
+
+	const TaskConf& conf = confIt->second;
+
+	stopAndRemove(name, conf);
+
+	for (int i = 0; i < conf.getNumProcs(); ++i) {
+		startProgram(name, i);
+	}
+
+	_logger.write("Program '{}' restarted", name);
+	return {"Program restarted"};
 }
 
 HttpResponse TaskManager::_reloadConf(const HttpRequest& request) {
