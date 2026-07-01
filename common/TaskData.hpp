@@ -7,7 +7,6 @@
 struct TaskData {
 	std::string name;
 	int         index;
-	int         status;
 	int         exitStatus;
 	State       state;
 	std::string cmd;

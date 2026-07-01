@@ -2,15 +2,7 @@
 #define RUNNING_TASK_HPP
 #include <chrono>
 
-enum deathStatus {
-	stopped,
-	starting,
-	running,
-	stopping,
-	restarting,
-	expected,
-	unexpected,
-};
+#include "State.hpp"
 
 class RunningTask {
 public:
@@ -25,7 +17,7 @@ public:
 
 	// private:
 	pid_t   _pid{-1};
-	int     status{running};
+	State   status{State::running};
 	int32_t procStatus{0};
 
 

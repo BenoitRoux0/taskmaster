@@ -38,6 +38,25 @@ int Cli::run() {
     return 0;
 }
 
+std::optional<int> Cli::handleStart(const Command& cmd) {
+	std::expected<std::string, std::string> res;
+	if (!cmd.args.empty()) {
+		for (const std::string& arg : cmd.args) {
+			res = _client.post<std::string>("/task/{}/start", arg);
+			if (res.has_value()) {
+				std::println("{}", res.value());
+			} else {
+				std::println(stderr, "{}", res.error_or("unknown error"));
+			}
+		}
+	}
+	else {
+		std::println("Start requires a process name");
+	}
+
+	return {};
+}
+
 std::optional<int> Cli::handleCommand(const Command& cmd) {
 	std::expected<std::string, std::string> res;
 
@@ -57,23 +76,15 @@ std::optional<int> Cli::handleCommand(const Command& cmd) {
             }
             break;
         case commandType::STATUS:
-			handleStatus(cmd);
+			return handleStatus(cmd);
             break;
         case commandType::START:
-            if (!cmd.args.empty()) {
-                for (const std::string& arg : cmd.args) {
-                    res = _client.post<std::string>("/start/{}", arg);
-                    std::cout << res.value_or(res.error()) << std::endl;
-                }
-            }
-            else {
-                std::println("Start requires a process name");
-            }
+            return handleStart(cmd);
             break;
         case commandType::STOP:
             if (!cmd.args.empty()) {
                 for (const std::string& arg : cmd.args) {
-                    res = _client.post<std::string>("/stop/{}",arg );
+                    res = _client.post<std::string>("/task/{}/stop",arg );
                     std::cout << res.value_or(res.error()) << std::endl;
                 }
             }
@@ -84,7 +95,7 @@ std::optional<int> Cli::handleCommand(const Command& cmd) {
         case commandType::RESTART:
             if (!cmd.args.empty()) {
                 for (const std::string& arg : cmd.args) {
-                    res = _client.post<std::string>("/restart/{}", arg);
+                    res = _client.post<std::string>("/task/{}/restart", arg);
                     std::cout << res.value_or(res.error()) << std::endl;
                 }
             }
@@ -117,12 +128,19 @@ std::optional<int> Cli::handleStatus(const Command& cmd) {
 
 			if (current.has_value()) {
 				res.append_range(current.value());
+			} else {
+				std::println(stderr, "{}", current.error_or("unknown error"));
+				return {};
 			}
 		}
 	} else {
 		auto current = _client.get<std::vector<TaskData>>("tasks");
-		if (current.has_value())
+		if (current.has_value()) {
 			res.append_range(current.value());
+		} else {
+			std::println(stderr, "{}", current.error_or("unknown error"));
+			return {};
+		}
 	}
 
 	for (const auto& task: res) {
@@ -135,7 +153,7 @@ std::optional<int> Cli::handleStatus(const Command& cmd) {
 		    if (task.index == subTasks.size() - 1)
 			    start = " └─ ";
 
-			std::println("{}{}.{}", start, task.name, task.index);
+			std::println("{}{}.{}: {}", start, task.name, task.index, to_string(task.state));
 		}
 	}
 
