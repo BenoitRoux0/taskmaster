@@ -36,7 +36,7 @@ std::string HttpClient::buildUrl(const std::string& path, std::string arg) const
 	if (path == "start" || path == "stop") {
 		fullUrl = _config.getBaseUrl() + "task/" + arg + "/" + path;
 	}
-	else if (path == "reload" || path == "kill") {
+	else if (path == "reload" || path == "exit") {
 		fullUrl = _config.getBaseUrl() + path;
 	}
 	else if (path == "tasks") {
