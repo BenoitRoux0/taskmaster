@@ -29,6 +29,8 @@ private:
 	std::optional<int> handleCommand(const std::vector<std::string>& args);
 	std::optional<int> handleStatus(const Command& cmd);
 	std::optional<int> handleStart(const Command& cmd);
+	std::optional<int> handleStop(const Command& cmd);
+	std::optional<int> handleRestart(const Command& cmd);
 	void               handleReload(const Command& cmd);
 
 	std::expected<std::vector<TaskData>, std::string> getTask(const std::string& name);

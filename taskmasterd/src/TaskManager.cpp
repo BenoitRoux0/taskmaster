@@ -513,7 +513,7 @@ HttpResponse TaskManager::_restartTask(const HttpRequest& request) {
 
 	if (confIt == _tasksConfs.end()) {
 		_logger.write("Restart request rejected: '{}' is not configured", name);
-		return {"404", "program is not configured"};
+		return {"404", "\"Program is not configured\""};
 	}
 
 	const TaskConf& conf = confIt->second;
@@ -525,7 +525,7 @@ HttpResponse TaskManager::_restartTask(const HttpRequest& request) {
 	}
 
 	_logger.write("Program '{}' restarted", name);
-	return {"Program restarted"};
+	return {"\"Program restarted\""};
 }
 
 HttpResponse TaskManager::_reloadConf(const HttpRequest& request) {
@@ -550,5 +550,5 @@ HttpResponse TaskManager::_exitDaemon(const HttpRequest& request) {
 	}
 
 	_server.stopAfterSend();
-	return {"Daemon stopped"};
+	return {"\"Daemon stopped\""};
 }
