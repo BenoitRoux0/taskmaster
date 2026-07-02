@@ -104,14 +104,6 @@ void Server::endSending(const int socket) {
 	if (!itSocket->second->keepAlive()) {
 		remove(socket);
 	}
-
-	if (_stopAfterSend) {
-		stop();
-	}
-}
-
-void Server::stopAfterSend() {
-	_stopAfterSend = true;
 }
 
 void Server::handleHttpRequest(const int socket, const HttpRequest& http_request) {

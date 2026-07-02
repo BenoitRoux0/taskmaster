@@ -5,9 +5,6 @@
 HttpListener::HttpListener(Server& server, uint16_t port): Socket(server) {
 	_fd = socket(AF_INET, SOCK_STREAM, 0);
 
-	int opt = 1;
-	setsockopt(_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
-
 	sockaddr_in sin{};
 
 	bzero(&sin, sizeof(sockaddr_in));

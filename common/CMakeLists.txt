@@ -2,10 +2,10 @@ cmake_minimum_required(VERSION 3.16)
 
 project(common LANGUAGES CXX)
 
-add_library(common STATIC)
+add_library(common STATIC
+  common.h
+)
 
-target_sources(common INTERFACE include/TaskData.hpp include/State.hpp include/tm_common.hpp)
+target_link_libraries(common PRIVATE serial::serial)
 
-target_sources(common PUBLIC src/tm_common.cpp)
-
-target_include_directories(common PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include)
+target_compile_definitions(common PRIVATE COMMON_LIBRARY)

@@ -2,7 +2,15 @@
 #define RUNNING_TASK_HPP
 #include <chrono>
 
-#include "State.hpp"
+enum deathStatus {
+	stopped,
+	starting,
+	running,
+	stopping,
+	restarting,
+	expected,
+	unexpected,
+};
 
 class RunningTask {
 public:
@@ -13,21 +21,20 @@ public:
 	std::chrono::time_point<std::chrono::local_t, std::chrono::nanoseconds> getStart() const;
 	std::chrono::time_point<std::chrono::local_t, std::chrono::nanoseconds> getEnd() const;
 
-	void dead(std::chrono::time_point<std::chrono::local_t, std::chrono::nanoseconds> time);
+	void dead();
 
 	// private:
 	pid_t   _pid{-1};
-	State   status{State::running};
+	int     status{running};
 	int32_t procStatus{0};
 
+	std::chrono::time_point<std::chrono::local_t, std::chrono::nanoseconds> start;
+	std::chrono::time_point<std::chrono::local_t, std::chrono::nanoseconds> end;
 
 	void setStopTime(std::chrono::milliseconds ms);
 	bool decreaseStopTime(std::chrono::milliseconds ms);
 
 private:
-	std::chrono::time_point<std::chrono::local_t, std::chrono::nanoseconds> start;
-	std::chrono::time_point<std::chrono::local_t, std::chrono::nanoseconds> end;
-
 	std::chrono::milliseconds remainingStopTime{-1};
 };
 

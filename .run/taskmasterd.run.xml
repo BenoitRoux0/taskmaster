@@ -1,7 +1,0 @@
-<component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="taskmasterd" type="CMakeRunConfiguration" factoryName="Application" PROGRAM_PARAMS="-c ./conf.toml" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" WORKING_DIR="file://$ContentRoot$" PASS_PARENT_ENVS_2="true" PROJECT_NAME="TaskMaster" TARGET_NAME="taskmasterd" CONFIG_NAME="Debug-GCC 16.1" RUN_TARGET_PROJECT_NAME="TaskMaster" RUN_TARGET_NAME="taskmasterd">
-    <method v="2">
-      <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
-    </method>
-  </configuration>
-</component>

@@ -5,7 +5,7 @@
 namespace stackixx {
 	static std::string getRawValue(const char* value, char** end);
 
-	std::vector<std::pair<std::string, std::string>> extractRawValues(const char* value, char** end) {
+	std::vector<std::pair<std::string, std::string>> extractRawValues(const char* value, [[maybe_unused]] char** end) {
 		const char* ptr = value;
 
 		skipWhitespaces(ptr);
@@ -38,13 +38,6 @@ namespace stackixx {
 				throw std::exception();
 			++ptr;
 		}
-
-		skipWhitespaces(ptr);
-		if (*ptr == '}')
-			++ptr;
-
-		if (end)
-			*end = const_cast<char*>(ptr);
 
 		return raw_values;
 	}

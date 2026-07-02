@@ -162,9 +162,3 @@ void HttpSessionSocket::send(const std::string& string) {
 bool HttpSessionSocket::keepAlive() {
 	return true;
 }
-
-HttpSessionSocket::~HttpSessionSocket() {
-	std::println("shutdown: {}", _fd);
-
-	shutdown(_fd, SHUT_RDWR);
-}
