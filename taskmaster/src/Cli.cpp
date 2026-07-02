@@ -42,7 +42,7 @@ std::optional<int> Cli::handleStart(const Command& cmd) {
 	std::expected<std::string, std::string> res;
 	if (!cmd.args.empty()) {
 		for (const std::string& arg : cmd.args) {
-			res = _client.post<std::string>("/task/{}/start", arg);
+			res = _client.post<std::string>("task/{}/start", arg);
 			if (res.has_value()) {
 				std::println("{}", res.value());
 			} else {
@@ -57,9 +57,47 @@ std::optional<int> Cli::handleStart(const Command& cmd) {
 	return {};
 }
 
+std::optional<int> Cli::handleStop(const Command& cmd) {
+	std::expected<std::string, std::string> res;
+	if (!cmd.args.empty()) {
+		for (const std::string& arg : cmd.args) {
+			res = _client.post<std::string>("task/{}/stop", arg);
+			if (res.has_value()) {
+				std::println("{}", res.value());
+			} else {
+				std::println(stderr, "{}", res.error_or("unknown error"));
+			}
+		}
+	}
+	else {
+		std::println("Stop requires a process name");
+	}
+
+	return {};
+}
+
+std::optional<int> Cli::handleRestart(const Command& cmd) {
+	std::expected<std::string, std::string> res;
+	if (!cmd.args.empty()) {
+		for (const std::string& arg : cmd.args) {
+			res = _client.post<std::string>("task/{}/restart", arg);
+			if (res.has_value()) {
+				std::println("{}", res.value());
+			} else {
+				std::println(stderr, "{}", res.error_or("unknown error"));
+			}
+		}
+	}
+	else {
+		std::println("Restart requires a process name");
+	}
+
+	return {};
+}
+
 void Cli::handleReload(const Command& cmd) {
 	if (cmd.args.empty()) {
-		auto res = _client.post<std::string>("/reload");
+		auto res = _client.post<std::string>("reload");
 		if (res.has_value()) {
 			std::println("{}", res.value());
 		} else {
@@ -79,9 +117,13 @@ std::optional<int> Cli::handleCommand(const Command& cmd) {
             if (!cmd.args.empty() && cmd.args.size() == 1) {
                 if (cmd.args[0] == "cli") {
                     return 0;
-                } else if (cmd.args[0] == "daemon") {
+                } if (cmd.args[0] == "daemon") {
                 	res = _client.post<std::string>("/exit");
-                	std::cout << res.value_or(res.error()) << std::endl;
+                	if (res.has_value()) {
+                		std::println("{}", res.value());
+                	} else {
+                		std::println(stderr, "{}", res.error_or("unknown error"));
+                	}
                 } else {
                     std::println("Exit requires one argument: 'daemon' or 'cli'");
                 }
@@ -91,32 +133,12 @@ std::optional<int> Cli::handleCommand(const Command& cmd) {
             break;
         case commandType::STATUS:
 			return handleStatus(cmd);
-            break;
         case commandType::START:
             return handleStart(cmd);
-            break;
         case commandType::STOP:
-            if (!cmd.args.empty()) {
-                for (const std::string& arg : cmd.args) {
-                    res = _client.post<std::string>("/task/{}/stop",arg );
-                    std::cout << res.value_or(res.error()) << std::endl;
-                }
-            }
-            else {
-                std::println("Stop requires a process name");
-            }
-            break;
+    		return handleStop(cmd);
         case commandType::RESTART:
-            if (!cmd.args.empty()) {
-                for (const std::string& arg : cmd.args) {
-                    res = _client.post<std::string>("/task/{}/restart", arg);
-                    std::cout << res.value_or(res.error()) << std::endl;
-                }
-            }
-            else {
-                std::println("Restart requires a process name");
-            }
-            break;
+    		return handleRestart(cmd);
         case commandType::RELOAD:
             handleReload(cmd);
             break;
