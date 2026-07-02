@@ -19,7 +19,7 @@ public:
 	pid_t   _pid{-1};
 	State   status{State::running};
 	int32_t procStatus{0};
-
+	int		remainingTries{0};
 
 	void setStopTime(std::chrono::milliseconds ms);
 	bool decreaseStopTime(std::chrono::milliseconds ms);

@@ -12,7 +12,7 @@ HttpListener::HttpListener(Server& server, uint16_t port): Socket(server) {
 
 	bzero(&sin, sizeof(sockaddr_in));
 
-	sin.sin_addr.s_addr = htonl(INADDR_ANY);
+	sin.sin_addr.s_addr = inet_addr("127.0.0.1");
 	sin.sin_family = AF_INET;
 	sin.sin_port = htons(port);
 

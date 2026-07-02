@@ -3,7 +3,7 @@
 
 #include <string>
 #include <netinet/in.h>
-
+#include <arpa/inet.h>
 #include "Socket.hpp"
 
 class HttpListener: public Socket {

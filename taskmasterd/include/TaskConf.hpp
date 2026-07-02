@@ -30,7 +30,7 @@ struct TaskConf {
 	bool                               getStartAtLaunch() const { return start_at_launch.value_or(true); }
 	std::string                        getRestart() const { return restart.value_or("unexpected"); }
 	std::vector<int>                   getExitCodes() const { return exit_codes.value_or({0}); }
-	int                                getStartTime() const { return start_time.value_or(1); }
+	std::chrono::milliseconds		   getStartTime() const { return std::chrono::milliseconds(stop_time.value_or(1)) * 1000; }
 	int                                getRetries() const { return retries.value_or(3); }
 	int                                getStopSig() const { return stop_sig.value_or(SIGTERM); }
 	std::chrono::milliseconds          getStopTime() const { return std::chrono::milliseconds(stop_time.value_or(10)) * 1000; }
@@ -41,6 +41,7 @@ struct TaskConf {
 	mode_t                             getUmask() const { return umask.value_or(022); }
 	std::string                        getShell() const { return shell.value_or("/bin/bash"); }
 	std::map<std::string, std::string> getEnv() const { return env.value_or({}); }
+	bool operator==(const TaskConf& task_conf) const = default;
 };
 
 TOML11_DEFINE_CONVERSION_NON_INTRUSIVE(TaskConf,

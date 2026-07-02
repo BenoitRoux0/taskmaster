@@ -57,6 +57,20 @@ std::optional<int> Cli::handleStart(const Command& cmd) {
 	return {};
 }
 
+void Cli::handleReload(const Command& cmd) {
+	if (cmd.args.empty()) {
+		auto res = _client.post<std::string>("/reload");
+		if (res.has_value()) {
+			std::println("{}", res.value());
+		} else {
+			std::println(stderr, "{}", res.error_or("unknown error"));
+		}
+	}
+	else {
+		std::println("Reload does not take any arguments");
+	}
+}
+
 std::optional<int> Cli::handleCommand(const Command& cmd) {
 	std::expected<std::string, std::string> res;
 
@@ -104,13 +118,7 @@ std::optional<int> Cli::handleCommand(const Command& cmd) {
             }
             break;
         case commandType::RELOAD:
-            if (cmd.args.empty()) {
-                res = _client.post<std::string>("/reload");
-                std::cout << res.value_or(res.error()) << std::endl;
-            }
-            else {
-                std::println("Reload does not take any arguments");
-            }
+            handleReload(cmd);
             break;
 		default: break;
     }
