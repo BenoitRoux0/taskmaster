@@ -96,14 +96,17 @@ std::expected<Out, std::string> HttpClient::post(std::format_string<Args...> url
 
 	CURLcode res = curl_easy_perform(_curl);
 	if (res != CURLE_OK) {
+		curl_slist_free_all(header);
 		return std::unexpected(std::format("curl error: {}", errbuf));
 	}
 
 	curl_easy_getinfo(_curl, CURLINFO_RESPONSE_CODE, &httpCode);
 	if (httpCode != 200) {
+		curl_slist_free_all(header);
 		return std::unexpected(response);
 	}
 
+	curl_slist_free_all(header);
 	return {stackixx::deserialize<Out>(response.c_str(), nullptr)};
 }
 

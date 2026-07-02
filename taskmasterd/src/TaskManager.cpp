@@ -32,7 +32,7 @@ void TaskManager::stopAndRemove(const std::string& name, const TaskConf& conf) {
 	std::vector<RunningTaskId> ids;
 	for (const auto& [id, task]: _runningTasks) {
 		if (id._name == name && (task.status == State::running || task.status == State::starting
-			|| task.status == State::fatal || task.status == State::stopped))
+		                         || task.status == State::fatal || task.status == State::stopped))
 			ids.push_back(id);
 	}
 
@@ -74,14 +74,6 @@ void TaskManager::stopAndRemove(const std::string& name, const TaskConf& conf) {
 	}
 };
 
-static bool sameConf (const TaskConf& a, const TaskConf& b) {
-	return a.cmd == b.cmd && a.num_procs == b.num_procs && a.start_at_launch == b.start_at_launch
-		   && a.restart == b.restart && a.exit_codes == b.exit_codes && a.start_time == b.start_time
-		   && a.retries == b.retries && a.stop_sig == b.stop_sig && a.stop_time == b.stop_time
-		   && a.std_in == b.std_in && a.std_out == b.std_out && a.std_err == b.std_err
-		   && a.workdir == b.workdir && a.umask == b.umask && a.shell == b.shell && a.env == b.env;
-};
-
 void TaskManager::reloadConf(const std::optional<std::string>& confFile) {
 	try {
 		std::string confPath = _conf;
@@ -120,8 +112,7 @@ void TaskManager::reloadConf(const std::optional<std::string>& confFile) {
 						_runningTasks[id].status = State::stopped;
 					}
 				}
-
-			} else if (!sameConf(oldConfIt->second, newConf)) {
+			} else if (oldConfIt->second != newConf) {
 				_logger.write("Program '{}' configuration changed, restarting", name);
 				stopAndRemove(name, oldConfIt->second);
 				_tasksConfs[name] = newConf;
@@ -138,7 +129,6 @@ void TaskManager::reloadConf(const std::optional<std::string>& confFile) {
 				}
 			}
 		}
-
 	} catch (toml::syntax_error& e) {
 		std::print("{}", e.what());
 	}
@@ -153,7 +143,7 @@ void TaskManager::handleDeath(pid_t pid, int32_t status) {
 	for (auto& [name, task]: _runningTasks) {
 		if (task._pid == pid) {
 			_logger.write("{} is dead", name._name);
-			task.status = State::stopped;
+			task.status = State::exited;
 			task.dead(end);
 			task.procStatus = status;
 
@@ -162,14 +152,14 @@ void TaskManager::handleDeath(pid_t pid, int32_t status) {
 				std::chrono::duration<double> diff = end - task.getStart();
 
 				if (diff < std::chrono::seconds(time))
-					task.status = State::fatal;
+					task.status = State::backOff;
 			}
 
 			if (WIFEXITED(status)) {
 				const auto exit_codes = _tasksConfs[name._name].getExitCodes();
 
 				if (std::ranges::find(exit_codes, WEXITSTATUS(status)) == exit_codes.end()) {
-					task.status = State::fatal;
+					task.status = State::backOff;
 				}
 			}
 
@@ -177,7 +167,9 @@ void TaskManager::handleDeath(pid_t pid, int32_t status) {
 				const auto exp_sig = _tasksConfs[name._name].getStopSig();
 
 				if (WTERMSIG(status) != exp_sig) {
-					task.status = State::fatal;
+					task.status = State::backOff;
+				} else {
+					task.status = State::stopped;
 				}
 			}
 
@@ -190,15 +182,13 @@ void TaskManager::handleDeath(pid_t pid, int32_t status) {
 }
 
 void TaskManager::run() {
-	_server.bind(1234);
+	_server.bind(54321);
 
 	if (!_server.isReady())
 		return;
 
 	_server.onHttpRequest([&](const auto& request) { return this->_onHttpRequest(request); });
-
 	_server.onChildRequest([&](const auto& siginfo) { this->_onChildRequest(siginfo); });
-
 	_server.onWakeUp([&](auto delta) { this->_onWakeUp(delta); });
 
 	sigset_t set;
@@ -248,7 +238,6 @@ HttpResponse TaskManager::_onHttpRequest(const HttpRequest& request) {
 		} if (request.getUrl().size() == 1 && request.getUrl()[0] == "exit") {
 			return this->_exitDaemon(request);
 		}
-
 	}
 
 	return {"404", ""};
@@ -330,15 +319,13 @@ static void configureTask(TaskConf task) {
 void TaskManager::startPrograms() {
 	for (auto& [name, task]: _tasksConfs) {
 		int num_procs = task.getNumProcs();
-		if (!task.getStartAtLaunch()) {
-			for (int i = 0; i < num_procs; ++i) {
-				RunningTaskId id(name, i);
-				_runningTasks[id] = RunningTask{};
-				_runningTasks[id].status = State::stopped;
-			}
-			continue;
-		}
 		for (int i = 0; i < num_procs; ++i) {
+			RunningTaskId id(name, i);
+			_runningTasks[id] = RunningTask{};
+			_runningTasks[id].remainingTries = task.getRetries();
+			_runningTasks[id].status = State::stopped;
+		}
+		for (int i = 0; i < num_procs && task.getStartAtLaunch(); ++i) {
 			startProgram(name, i);
 		}
 	}
@@ -381,7 +368,7 @@ void TaskManager::startTask(const std::string& name, int index, const TaskConf& 
 		perror("execle");
 		exit(1);
 	} else if (pid > 0) {
-		_runningTasks[id] = RunningTask(pid);
+		_runningTasks[id]._pid = (pid);
 		_runningTasks[id].status = State::starting;
 		_logger.write("Launching program: {}_{}", name, index);
 	} else {
@@ -395,6 +382,26 @@ void TaskManager::_onWakeUp(std::chrono::milliseconds delta) {
 			kill(_runningTasks[taskId]._pid, SIGKILL);
 		}
 	}
+
+	for (auto& [id, task]: _runningTasks) {
+		auto now = std::chrono::current_zone()->to_local(std::chrono::system_clock::now());
+		if (task.status == State::starting && now - task.getStart() >= _tasksConfs[id._name].getStartTime())
+			task.status = State::running;
+
+		if (_tasksConfs[id._name].getRestart() == "never")
+			continue;
+
+		if (task.status == State::backOff ) {
+			if (_runningTasks[id].remainingTries == 0)
+				task.status = State::fatal;
+
+			startTask(id._name, id._index, _tasksConfs[id._name]);
+			--_runningTasks[id].remainingTries;
+		} else if (task.status == State::exited && _tasksConfs[id._name].getRestart() == "always") {
+			startTask(id._name, id._index, _tasksConfs[id._name]);
+			--_runningTasks[id].remainingTries;
+		}
+	}
 }
 
 TaskManager::TaskManager() = default;
@@ -403,7 +410,7 @@ TaskManager::~TaskManager() = default;
 
 HttpResponse TaskManager::_getTaskDetails(const HttpRequest& request) {
 	if (request.getUrl().size() == 2) {
-		auto name = request.getUrl()[1];
+		auto                  name = request.getUrl()[1];
 		std::vector<TaskData> tasks{};
 
 		for (const auto& [id, task]: _runningTasks) {
@@ -478,7 +485,8 @@ HttpResponse TaskManager::_startTask(const HttpRequest& request) {
 		RunningTaskId id(name, i);
 		auto          it = _runningTasks.find(id);
 
-		if (it != _runningTasks.end() && (it->second.status == State::running || it->second.status == State::starting)) {
+		if (it != _runningTasks.end() && (it->second.status == State::running || it->second.status ==
+		                                  State::starting)) {
 			++alreadyRunning;
 			continue;
 		}
@@ -512,7 +520,7 @@ HttpResponse TaskManager::_exitDaemon(const HttpRequest& request) {
 		return {"400", ""};
 	}
 
-	for (const auto& [name, conf] : _tasksConfs) {
+	for (const auto& [name, conf]: _tasksConfs) {
 		stopAndRemove(name, conf);
 	}
 
