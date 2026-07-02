@@ -3,6 +3,7 @@
 #include <cerrno>
 #include <cstdio>
 #include <format>
+#include <optional>
 #include <print>
 #include <string.h>
 #include <string>
@@ -17,6 +18,7 @@ public:
 	template< class... Args >
 	void write(std::format_string<Args...> fmt, Args&&... args);
 
+	std::optional<std::string> checkLogFile();
 
 private:
 	std::string    _head;
