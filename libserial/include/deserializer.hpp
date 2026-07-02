@@ -33,6 +33,9 @@ namespace stackixx {
 		if (!value)
 			return "";
 
+		if (strlen(value) == 0)
+			return "";
+
 		const char* ptr = value;
 
 		skipWhitespaces(ptr);
