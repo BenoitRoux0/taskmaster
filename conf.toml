@@ -1,17 +1,17 @@
-[programs."ls"]
-cmd = "ls -la $HOME"
-num_procs = 2
-start_at_launch = false
-workdir = "/tmp"
-std_out = "/tmp/taskmaster_ls.log"
-env = { HELLO = "World", TEST = "Mars" }
-
-[programs.cat]
-cmd = "cat $HOME/.zshrc"
-start_at_launch = true
-std_out = "/tmp/taskmaster_cat.log"
-std_err = "/tmp/taskmaster_cat_err.log"
-env = { HELLO = "World", TEST = "Mars" }
+#[programs."ls"]
+#cmd = "ls -la $HOME"
+#num_procs = 2
+#start_at_launch = false
+#workdir = "/tmp"
+#std_out = "/tmp/taskmaster_ls.log"
+#env = { HELLO = "World", TEST = "Mars" }
+#
+#[programs.cat]
+#cmd = "cat $HOME/.zshrc"
+#start_at_launch = true
+#std_out = "/tmp/taskmaster_cat.log"
+#std_err = "/tmp/taskmaster_cat_err.log"
+#env = { HELLO = "World", TEST = "Mars" }
 
 [programs.echo]
 cmd = "echo $HELLO"
@@ -21,8 +21,8 @@ std_out = "/tmp/taskmaster_echo.log"
 env = { HELLO = "World", TEST = "Mars" }
 
 [programs."sleeper"]
-cmd = "sleep 30"
+cmd = "sleep 15"
 
-[programs."sleeper_failed"]
-cmd = "sleep 30"
-start_time = 35
+#[programs."sleeper_failed"]
+#cmd = "sleep 30"
+#start_time = 35
