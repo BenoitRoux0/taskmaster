@@ -42,7 +42,7 @@ std::optional<int> Cli::handleStart(const Command& cmd) {
 	std::expected<std::string, std::string> res;
 	if (!cmd.args.empty()) {
 		for (const std::string& arg : cmd.args) {
-			res = _client.post<std::string>("/task/{}/start", arg);
+			res = _client.post<std::string>("task/{}/start", arg);
 			if (res.has_value()) {
 				std::println("{}", res.value());
 			} else {
@@ -59,7 +59,7 @@ std::optional<int> Cli::handleStart(const Command& cmd) {
 
 void Cli::handleReload(const Command& cmd) {
 	if (cmd.args.empty()) {
-		auto res = _client.post<std::string>("/reload");
+		auto res = _client.post<std::string>("reload");
 		if (res.has_value()) {
 			std::println("{}", res.value());
 		} else {
@@ -98,7 +98,7 @@ std::optional<int> Cli::handleCommand(const Command& cmd) {
         case commandType::STOP:
             if (!cmd.args.empty()) {
                 for (const std::string& arg : cmd.args) {
-                    res = _client.post<std::string>("/task/{}/stop",arg );
+                    res = _client.post<std::string>("task/{}/stop",arg );
                     std::cout << res.value_or(res.error()) << std::endl;
                 }
             }
@@ -109,7 +109,7 @@ std::optional<int> Cli::handleCommand(const Command& cmd) {
         case commandType::RESTART:
             if (!cmd.args.empty()) {
                 for (const std::string& arg : cmd.args) {
-                    res = _client.post<std::string>("/task/{}/restart", arg);
+                    res = _client.post<std::string>("task/{}/restart", arg);
                     std::cout << res.value_or(res.error()) << std::endl;
                 }
             }
