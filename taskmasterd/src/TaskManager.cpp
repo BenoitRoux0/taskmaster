@@ -17,6 +17,8 @@
 #include "TaskData.hpp"
 #include <sys/wait.h>
 
+#include "tm_common.hpp"
+
 void TaskManager::loadConf(const std::optional<std::string>& confFile) {
 	try {
 		if (confFile.has_value())
@@ -572,6 +574,13 @@ HttpResponse TaskManager::_stopTask(const HttpRequest& request) {
 
 	auto name = request.getUrl()[1];
 
+	auto confIt = _tasksConfs.find(name);
+
+	if (confIt == _tasksConfs.end()) {
+		_logger.write("Stop request rejected: '{}' is not configured", name);
+		return {"404", "\"Program is not configured\""};
+	}
+
 	stopTask(name);
 
 	return {""};
@@ -648,7 +657,7 @@ HttpResponse TaskManager::_reloadConf(const HttpRequest& request) {
 	if (url.size() != 1 || _stopped || _reloading) {
 		return {"400", ""};
 	}
-	reloadConf("./conf.toml");
+	reloadConf(getEnv("TM_CONF", "./conf.toml"));
 	return {"\"Conf reloaded\""};
 }
 
