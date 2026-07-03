@@ -205,42 +205,42 @@ void TaskManager::run() {
 HttpResponse TaskManager::_onHttpRequest(const HttpRequest& request) {
 	_logger.write("received: {}", request.getRawUrl());
 
-	if (request.getMethod() == "GET") {
-		if (request.getRawUrl() == "/tasks") {
-			std::vector<TaskData> data{};
+	auto logFileWarning = _logger.checkLogFile();
 
-			for (const auto& [id, task]: _runningTasks) {
-				data.push_back({
-					id._name,
-					id._index,
-					task.procStatus,
-					task.status,
-					_tasksConfs[id._name].cmd
-				});
+	HttpResponse response = [&]() -> HttpResponse {
+		if (request.getMethod() == "GET") {
+			if (request.getRawUrl() == "/tasks") {
+				std::vector<RunningTask> data{};
+				for (const auto& task: _runningTasks | std::views::values) {
+					data.push_back(task);
+				}
+				return {stackixx::serialize(data)};
 			}
+			if (*request.getUrl().begin() == "task") {
+				return this->_getTaskDetails(request);
+			}
+		}
 
-			return {stackixx::serialize(data)};
+		if (request.getMethod() == "POST") {
+			if (request.getUrl().size() == 3 && request.getUrl()[0] == "task" && request.getUrl()[2] == "stop") {
+				return this->_stopTask(request);
+			} if (request.getUrl().size() == 3 && request.getUrl()[0] == "task" && request.getUrl()[2] == "start") {
+				return this->_startTask(request);
+			} if (request.getUrl().size() == 3 && request.getUrl()[0] == "task" && request.getUrl()[2] == "restart") {
+				return this->_restartTask(request);
+			} if (request.getUrl().size() == 1 && request.getUrl()[0] == "reload") {
+				return this->_reloadConf(request);
+			}
 		}
-		if (*request.getUrl().begin() == "task") {
-			return this->_getTaskDetails(request);
-		}
+
+		return {"404", ""};
+	}();
+
+	if (logFileWarning) {
+		response = {response.getStatus(), "\"" + *logFileWarning + "\n" + response.getBody() + "\""};
 	}
 
-	if (request.getMethod() == "POST") {
-		if (request.getUrl().size() == 3 && request.getUrl()[0] == "task" && request.getUrl()[2] == "stop") {
-			return this->_stopTask(request);
-		} if (request.getUrl().size() == 3 && request.getUrl()[0] == "task" && request.getUrl()[2] == "start") {
-			return this->_startTask(request);
-		} if (request.getUrl().size() == 1 && request.getUrl()[0] == "reload") {
-			return this->_reloadConf(request);
-		} if (request.getUrl().size() == 1 && request.getUrl()[0] == "exit") {
-			return this->_exitDaemon(request);
-		} if (request.getUrl().size() == 3 && request.getUrl()[0] == "task" && request.getUrl()[2] == "restart") {
-			return this->_restartTask(request);
-		}
-	}
-
-	return {"404", ""};
+	return response;
 }
 
 void TaskManager::_onChildRequest(const signalfd_siginfo& siginfo) {
