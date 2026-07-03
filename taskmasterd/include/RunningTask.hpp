@@ -4,6 +4,12 @@
 
 #include "State.hpp"
 
+enum class RefreshState {
+	nothing,
+	reload,
+	remove
+};
+
 class RunningTask {
 public:
 	RunningTask();
@@ -16,10 +22,11 @@ public:
 	void dead(std::chrono::time_point<std::chrono::local_t, std::chrono::nanoseconds> time);
 
 	// private:
-	pid_t   _pid{-1};
-	State   status{State::running};
-	int32_t procStatus{0};
-	int		remainingTries{0};
+	pid_t        _pid{-1};
+	State        status{State::stopped};
+	int32_t      procStatus{0};
+	int          remainingTries{0};
+	RefreshState afterRefresh{RefreshState::nothing};
 
 	void setStopTime(std::chrono::milliseconds ms);
 	bool decreaseStopTime(std::chrono::milliseconds ms);

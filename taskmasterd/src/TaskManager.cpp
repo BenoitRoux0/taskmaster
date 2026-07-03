@@ -9,6 +9,7 @@
 #include <print>
 #include <ranges>
 #include <string>
+#include <sys/file.h>
 
 #include "Logger.hpp"
 #include "serializer.hpp"
@@ -82,14 +83,22 @@ void TaskManager::reloadConf(const std::optional<std::string>& confFile) {
 		auto newTasksConfs = toml::find<std::map<std::string, TaskConf>>(newConfParsed, "programs");
 
 		std::vector<std::string> removed;
-		for (const auto& [name, _]: _tasksConfs) {
-			if (newTasksConfs.find(name) == newTasksConfs.end())
+		for (const auto& name: _tasksConfs | std::views::keys) {
+			if (!newTasksConfs.contains(name)) {
 				removed.push_back(name);
+			}
 		}
 
 		for (const auto& name: removed) {
 			_logger.write("Program '{}' removed from configuration, stopping all processes", name);
-			stopAndRemove(name, _tasksConfs.at(name));
+
+			for (auto& [id, task]: _runningTasks) {
+				if (id._name == name) {
+					task.afterRefresh = RefreshState::remove;
+				}
+			}
+
+			stopTask(name);
 			_tasksConfs.erase(name);
 		}
 
@@ -112,15 +121,22 @@ void TaskManager::reloadConf(const std::optional<std::string>& confFile) {
 				}
 			} else if (oldConfIt->second != newConf) {
 				_logger.write("Program '{}' configuration changed, restarting", name);
-				stopAndRemove(name, oldConfIt->second);
-				_tasksConfs[name] = newConf;
+
+				_newConfs[name] = newConf;
+
+				for (auto& [id, task]: _runningTasks) {
+					if (id._name == name)
+						task.afterRefresh = RefreshState::reload;
+				}
+
+				stopTask(name);
+				// stopAndRemove(name, oldConfIt->second);
+				// _tasksConfs[name] = newConf;
 
 				int numProcs = newConf.getNumProcs();
 				for (int i = 0; i < numProcs; ++i) {
-					if (newConf.getStartAtLaunch()) {
-						startProgram(name, i);
-					} else {
-						RunningTaskId id(name, i);
+					RunningTaskId id(name, i);
+					if (!_runningTasks.contains(id)) {
 						_runningTasks[id] = RunningTask{};
 						_runningTasks[id].status = State::stopped;
 					}
@@ -133,7 +149,15 @@ void TaskManager::reloadConf(const std::optional<std::string>& confFile) {
 }
 
 void TaskManager::stop() {
-	_server.stop();
+	for (auto& [taskId, task]: _runningTasks) {
+		task.remainingTries = 0;
+
+		if (task.status == State::starting || task.status == State::running) {
+			stopTask(taskId._name);
+		}
+	}
+
+	_stopped = true;
 }
 
 void TaskManager::handleDeath(pid_t pid, int32_t status) {
@@ -180,6 +204,9 @@ void TaskManager::handleDeath(pid_t pid, int32_t status) {
 }
 
 void TaskManager::run() {
+	if (!_ready)
+		return;
+
 	_server.bind(54321);
 
 	if (!_server.isReady())
@@ -210,9 +237,15 @@ HttpResponse TaskManager::_onHttpRequest(const HttpRequest& request) {
 	HttpResponse response = [&]() -> HttpResponse {
 		if (request.getMethod() == "GET") {
 			if (request.getRawUrl() == "/tasks") {
-				std::vector<RunningTask> data{};
-				for (const auto& task: _runningTasks | std::views::values) {
-					data.push_back(task);
+				std::vector<TaskData> data{};
+				for (const auto& [id, task]: _runningTasks) {
+					data.push_back({
+						id._name,
+						id._index,
+						task.procStatus,
+						task.status,
+						_tasksConfs[id._name].cmd
+					});
 				}
 				return {stackixx::serialize(data)};
 			}
@@ -224,11 +257,14 @@ HttpResponse TaskManager::_onHttpRequest(const HttpRequest& request) {
 		if (request.getMethod() == "POST") {
 			if (request.getUrl().size() == 3 && request.getUrl()[0] == "task" && request.getUrl()[2] == "stop") {
 				return this->_stopTask(request);
-			} if (request.getUrl().size() == 3 && request.getUrl()[0] == "task" && request.getUrl()[2] == "start") {
+			}
+			if (request.getUrl().size() == 3 && request.getUrl()[0] == "task" && request.getUrl()[2] == "start") {
 				return this->_startTask(request);
-			} if (request.getUrl().size() == 3 && request.getUrl()[0] == "task" && request.getUrl()[2] == "restart") {
+			}
+			if (request.getUrl().size() == 3 && request.getUrl()[0] == "task" && request.getUrl()[2] == "restart") {
 				return this->_restartTask(request);
-			} if (request.getUrl().size() == 1 && request.getUrl()[0] == "reload") {
+			}
+			if (request.getUrl().size() == 1 && request.getUrl()[0] == "reload") {
 				return this->_reloadConf(request);
 			}
 		}
@@ -264,7 +300,17 @@ void TaskManager::_onChildRequest(const signalfd_siginfo& siginfo) {
 		case SIGINT:
 			this->stop();
 			break;
+		default: ;
 	}
+}
+
+bool TaskManager::_isReloading() {
+	for (const auto& task: _runningTasks | std::views::values) {
+		if (task.afterRefresh != RefreshState::nothing)
+			return true;
+	}
+
+	return false;
 }
 
 static void configureTask(TaskConf task) {
@@ -352,23 +398,28 @@ void TaskManager::startProgram(const std::string& name, int index) {
 		}
 	}
 
-	startTask(name, index, confIt->second);
+	startTask(name, index, confIt->second, true);
 }
 
-void TaskManager::startTask(const std::string& name, int index, const TaskConf& taskConf) {
+void TaskManager::startTask(const std::string& name, int index, const TaskConf& taskConf, bool resetRetries) {
 	RunningTaskId id(name, index);
+
+	if (resetRetries) {
+		_runningTasks[id].remainingTries = taskConf.getRetries();
+	}
 
 	pid_t pid = fork();
 	if (pid == 0) {
 		configureTask(taskConf);
 		std::string shell = taskConf.getShell();
+		_lockFile.unlock();
 
 		execle(shell.c_str(), shell.c_str(), "-c", taskConf.cmd.c_str(), nullptr, environ);
 
 		perror("execle");
 		exit(1);
 	} else if (pid > 0) {
-		_runningTasks[id]._pid = (pid);
+		_runningTasks[id]._pid = pid;
 		_runningTasks[id].status = State::starting;
 		_logger.write("Launching program: {}_{}", name, index);
 	} else {
@@ -377,7 +428,7 @@ void TaskManager::startTask(const std::string& name, int index, const TaskConf& 
 }
 
 void TaskManager::_onWakeUp(std::chrono::milliseconds delta) {
-	for (auto taskId: _stoppingTasks) {
+	for (const auto& taskId: _stoppingTasks) {
 		if (_runningTasks[taskId].decreaseStopTime(delta)) {
 			kill(_runningTasks[taskId]._pid, SIGKILL);
 		}
@@ -385,26 +436,85 @@ void TaskManager::_onWakeUp(std::chrono::milliseconds delta) {
 
 	for (auto& [id, task]: _runningTasks) {
 		auto now = std::chrono::current_zone()->to_local(std::chrono::system_clock::now());
+
+		if (task.status != State::starting && task.status != State::running && task.status != State::stopping && task.
+		    afterRefresh == RefreshState::remove) {
+			_toRemove.push_back(id);
+		}
+
+		if (task.status != State::starting && task.status != State::running && task.status != State::stopping && task.
+		    afterRefresh == RefreshState::reload) {
+			_tasksConfs[id._name] = _newConfs[id._name];
+			// _newConfs.erase(id._name);
+			_toRefresh.push_back(id);
+			task.afterRefresh = RefreshState::nothing;
+		}
+
 		if (task.status == State::starting && now - task.getStart() >= _tasksConfs[id._name].getStartTime())
 			task.status = State::running;
 
 		if (_tasksConfs[id._name].getRestart() == "never")
 			continue;
 
-		if (task.status == State::backOff ) {
-			if (_runningTasks[id].remainingTries == 0)
+		if (task.status == State::backOff) {
+			if (_runningTasks[id].remainingTries == 0) {
 				task.status = State::fatal;
+				continue;
+			}
 
-			startTask(id._name, id._index, _tasksConfs[id._name]);
+			startTask(id._name, id._index, _tasksConfs[id._name], false);
 			--_runningTasks[id].remainingTries;
-		} else if (task.status == State::exited && _tasksConfs[id._name].getRestart() == "always") {
-			startTask(id._name, id._index, _tasksConfs[id._name]);
+		} else if (task.status == State::exited && _tasksConfs[id._name].getRestart() == "always" && _runningTasks[id].
+		           remainingTries > 0) {
+			startTask(id._name, id._index, _tasksConfs[id._name], false);
 			--_runningTasks[id].remainingTries;
 		}
 	}
+
+	if (_stopped) {
+		for (auto& [id, task]: _runningTasks) {
+			if (task.status == State::starting || task.status == State::running || task.status == State::stopping) {
+				return;
+			}
+		}
+		_server.stop();
+	}
+
+	for (const auto& task: _toRemove) {
+		_runningTasks.erase(task);
+	}
+
+	_toRemove.clear();
+
+	for (const auto& task: _toRefresh) {
+		RunningTaskId id(task._name, task._index);
+		_runningTasks[id] = RunningTask{};
+		_runningTasks[id].remainingTries = _tasksConfs[id._name].getRetries();
+	}
+
+	_toRefresh.clear();
+
+	_reloading = _isReloading();
 }
 
-TaskManager::TaskManager() = default;
+TaskManager::TaskManager(bool daemonize) {
+	std::string error;
+
+	if (!daemonize) {
+		_ready = true;
+		_logger.write("TaskMaster ready");
+		return;
+	}
+
+	if (daemon(0, 0) == -1) {
+		error = strerror(errno);
+		_logger.write("daemon error: {}", error);
+		return;
+	}
+
+	_ready = true;
+	_logger.write("TaskMaster ready");
+};
 
 TaskManager::~TaskManager() = default;
 
@@ -444,13 +554,7 @@ HttpResponse TaskManager::_getTaskDetails(const HttpRequest& request) {
 	return {"400", ""};
 }
 
-HttpResponse TaskManager::_stopTask(const HttpRequest& request) {
-	if (request.getUrl().size() != 3) {
-		return {"400", ""};
-	}
-
-	auto name = request.getUrl()[1];
-
+void TaskManager::stopTask(const std::string& name) {
 	for (auto& [id, task]: _runningTasks) {
 		if (id._name == name && (task.status == State::running || task.status == State::starting)) {
 			auto sig = _tasksConfs[id._name].getStopSig();
@@ -459,6 +563,16 @@ HttpResponse TaskManager::_stopTask(const HttpRequest& request) {
 			kill(task._pid, sig);
 		}
 	}
+}
+
+HttpResponse TaskManager::_stopTask(const HttpRequest& request) {
+	if (request.getUrl().size() != 3 || _reloading) {
+		return {"400", ""};
+	}
+
+	auto name = request.getUrl()[1];
+
+	stopTask(name);
 
 	return {""};
 }
@@ -466,7 +580,7 @@ HttpResponse TaskManager::_stopTask(const HttpRequest& request) {
 HttpResponse TaskManager::_startTask(const HttpRequest& request) {
 	const auto& url = request.getUrl();
 
-	if (url.size() != 3 || url[0] != "task" || url[2] != "start") {
+	if (url.size() != 3 || url[0] != "task" || url[2] != "start" || _stopped || _reloading) {
 		return {"400", ""};
 	}
 
@@ -504,12 +618,12 @@ HttpResponse TaskManager::_startTask(const HttpRequest& request) {
 }
 
 HttpResponse TaskManager::_restartTask(const HttpRequest& request) {
-	if (request.getUrl().size() != 3) {
+	if (request.getUrl().size() != 3 || _stopped || _reloading) {
 		return {"400", ""};
 	}
 
 	const std::string& name = request.getUrl()[1];
-	auto confIt = _tasksConfs.find(name);
+	auto               confIt = _tasksConfs.find(name);
 
 	if (confIt == _tasksConfs.end()) {
 		_logger.write("Restart request rejected: '{}' is not configured", name);
@@ -531,7 +645,7 @@ HttpResponse TaskManager::_restartTask(const HttpRequest& request) {
 HttpResponse TaskManager::_reloadConf(const HttpRequest& request) {
 	const auto& url = request.getUrl();
 
-	if (url.size() != 1) {
+	if (url.size() != 1 || _stopped || _reloading) {
 		return {"400", ""};
 	}
 	reloadConf("./conf.toml");
@@ -541,7 +655,7 @@ HttpResponse TaskManager::_reloadConf(const HttpRequest& request) {
 HttpResponse TaskManager::_exitDaemon(const HttpRequest& request) {
 	const auto& url = request.getUrl();
 
-	if (url.size() != 1) {
+	if (url.size() != 1 || _stopped || _reloading) {
 		return {"400", ""};
 	}
 
