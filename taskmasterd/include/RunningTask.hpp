@@ -7,6 +7,7 @@
 enum class RefreshState {
 	nothing,
 	reload,
+	reloadAndRestart,
 	remove
 };
 

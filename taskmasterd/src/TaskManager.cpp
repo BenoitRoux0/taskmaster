@@ -125,8 +125,11 @@ void TaskManager::reloadConf(const std::optional<std::string>& confFile) {
 				_newConfs[name] = newConf;
 
 				for (auto& [id, task]: _runningTasks) {
-					if (id._name == name)
+					if (id._name == name) {
 						task.afterRefresh = RefreshState::reload;
+						if (task.status == State::starting || task.status == State::running)
+							task.afterRefresh = RefreshState::reloadAndRestart;
+					}
 				}
 
 				stopTask(name);
@@ -188,7 +191,7 @@ void TaskManager::handleDeath(pid_t pid, int32_t status) {
 			if (WIFSIGNALED(status)) {
 				const auto exp_sig = _tasksConfs[name._name].getStopSig();
 
-				if (WTERMSIG(status) != exp_sig) {
+				if (WTERMSIG(status) != exp_sig && task.status != State::stopping) {
 					task.status = State::backOff;
 				} else {
 					task.status = State::stopped;
@@ -428,6 +431,13 @@ void TaskManager::startTask(const std::string& name, int index, const TaskConf& 
 }
 
 void TaskManager::_onWakeUp(std::chrono::milliseconds delta) {
+	for (auto& [id, task]: _runningTasks) {
+		if (id._index >= _tasksConfs[id._name].getNumProcs()) {
+			stopTask(id);
+			task.afterRefresh = RefreshState::remove;
+		}
+	}
+
 	for (const auto& taskId: _stoppingTasks) {
 		if (_runningTasks[taskId].decreaseStopTime(delta)) {
 			kill(_runningTasks[taskId]._pid, SIGKILL);
@@ -447,6 +457,14 @@ void TaskManager::_onWakeUp(std::chrono::milliseconds delta) {
 			_tasksConfs[id._name] = _newConfs[id._name];
 			// _newConfs.erase(id._name);
 			_toRefresh.push_back(id);
+			task.afterRefresh = RefreshState::nothing;
+		}
+
+		if (task.status != State::starting && task.status != State::running && task.status != State::stopping && task.
+		    afterRefresh == RefreshState::reloadAndRestart) {
+			_tasksConfs[id._name] = _newConfs[id._name];
+			// _newConfs.erase(id._name);
+			_toRefreshAndStart.push_back(id);
 			task.afterRefresh = RefreshState::nothing;
 		}
 
@@ -493,6 +511,12 @@ void TaskManager::_onWakeUp(std::chrono::milliseconds delta) {
 	}
 
 	_toRefresh.clear();
+
+	for (const auto& task: _toRefreshAndStart) {
+		startTask(task._name, task._index, _tasksConfs[task._name], true);
+	}
+
+	_toRefreshAndStart.clear();
 
 	_reloading = _isReloading();
 }
@@ -560,8 +584,20 @@ void TaskManager::stopTask(const std::string& name) {
 			auto sig = _tasksConfs[id._name].getStopSig();
 			task.setStopTime(_tasksConfs[id._name].getStopTime());
 			_stoppingTasks.insert(id);
+			task.status = State::stopping;
 			kill(task._pid, sig);
 		}
+	}
+}
+
+void TaskManager::stopTask(const RunningTaskId& id) {
+	auto task = _runningTasks[id];
+	if (task.status == State::running || task.status == State::starting) {
+		auto sig = _tasksConfs[id._name].getStopSig();
+		task.setStopTime(_tasksConfs[id._name].getStopTime());
+		_stoppingTasks.insert(id);
+		task.status = State::stopping;
+		kill(task._pid, sig);
 	}
 }
 

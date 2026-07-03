@@ -43,9 +43,11 @@ private:
 	std::map<std::string, TaskConf> _newConfs;
 	std::vector<RunningTaskId>      _toRemove;
 	std::vector<RunningTaskId>      _toRefresh;
+	std::vector<RunningTaskId>      _toRefreshAndStart;
 
 	HttpResponse _getTaskDetails(const HttpRequest& request);
 	void         stopTask(const std::string& name);
+	void         stopTask(const RunningTaskId& id);
 	HttpResponse _stopTask(const HttpRequest& request);
 	HttpResponse _startTask(const HttpRequest& request);
 	HttpResponse _reloadConf(const HttpRequest& request);
