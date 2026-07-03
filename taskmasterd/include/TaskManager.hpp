@@ -6,6 +6,7 @@
 
 #include <toml.hpp>
 
+#include "LockFile.hpp"
 #include "Logger.hpp"
 #include "RunningTask.hpp"
 #include "RunningTaskId.hpp"
@@ -13,7 +14,7 @@
 
 class TaskManager {
 public:
-	TaskManager();
+	explicit TaskManager(bool daemonize);
 
 	~TaskManager();
 
@@ -29,26 +30,35 @@ public:
 
 	HttpResponse _onHttpRequest(const HttpRequest& request);
 	void         _onChildRequest(const signalfd_siginfo& siginfo);
+	bool         _isReloading();
 	void         _onWakeUp(std::chrono::milliseconds delta);
 
 private:
-	Server      _server;
-	std::string _conf;
+	Server                          _server;
+	std::string                     _conf;
+	bool                            _ready{false};
+	LockFile                        _lockFile{"/var/lock/taskmaster.lock"};
+	bool                            _stopped{false};
+	bool                            _reloading{false};
+	std::map<std::string, TaskConf> _newConfs;
+	std::vector<RunningTaskId>      _toRemove;
+	std::vector<RunningTaskId>      _toRefresh;
 
 	HttpResponse _getTaskDetails(const HttpRequest& request);
+	void         stopTask(const std::string& name);
 	HttpResponse _stopTask(const HttpRequest& request);
 	HttpResponse _startTask(const HttpRequest& request);
 	HttpResponse _reloadConf(const HttpRequest& request);
 	HttpResponse _exitDaemon(const HttpRequest& request);
 	HttpResponse _restartTask(const HttpRequest& request);
 
-	Logger _logger{};
+	Logger _logger{"Taskmaster", stdout};
 
-	std::set<RunningTaskId>					_stoppingTasks{};
-	std::map<std::string, TaskConf>			_tasksConfs{};
-	std::map<RunningTaskId, RunningTask>	_runningTasks{};
+	std::set<RunningTaskId>              _stoppingTasks{};
+	std::map<std::string, TaskConf>      _tasksConfs{};
+	std::map<RunningTaskId, RunningTask> _runningTasks{};
 
-	void startTask(const std::string& name, int index, const TaskConf& taskConf);
+	void startTask(const std::string& name, int index, const TaskConf& taskConf, bool resetRetries);
 };
 
 #endif // TASK_MANAGER_HPP

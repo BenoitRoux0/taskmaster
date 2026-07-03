@@ -1,6 +1,7 @@
 #include "HttpListener.hpp"
 
 #include "Server.hpp"
+#include <print>
 
 HttpListener::HttpListener(Server& server, uint16_t port): Socket(server) {
 	_fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -12,7 +13,7 @@ HttpListener::HttpListener(Server& server, uint16_t port): Socket(server) {
 
 	bzero(&sin, sizeof(sockaddr_in));
 
-	sin.sin_addr.s_addr = inet_addr("127.0.0.1");
+	sin.sin_addr.s_addr = INADDR_ANY;
 	sin.sin_family = AF_INET;
 	sin.sin_port = htons(port);
 
@@ -20,6 +21,7 @@ HttpListener::HttpListener(Server& server, uint16_t port): Socket(server) {
 		close(_fd);
 		_fd = -1;
 		_ready = false;
+		std::println("bind error");
 		return;
 	}
 
@@ -27,6 +29,7 @@ HttpListener::HttpListener(Server& server, uint16_t port): Socket(server) {
 		close(_fd);
 		_fd = -1;
 		_ready = false;
+		std::println("listen error");
 		return;
 	}
 

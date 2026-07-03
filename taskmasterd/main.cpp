@@ -1,10 +1,9 @@
+#include <fcntl.h>
 #include <print>
 #include "TaskManager.hpp"
 
 int main() {
-    std::println("Hello from daemon: {}", getpid());
-
-	TaskManager manager;
+	TaskManager manager(false);
 
 	manager.loadConf("./conf.toml");
 	manager.run();

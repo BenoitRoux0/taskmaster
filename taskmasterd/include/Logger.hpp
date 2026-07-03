@@ -5,9 +5,10 @@
 #include <format>
 #include <optional>
 #include <print>
-#include <string.h>
+#include <cstring>
 #include <string>
 #include <unistd.h>
+#include <sys/syslog.h>
 
 class Logger {
 public:
@@ -43,10 +44,12 @@ void Logger::write(std::format_string<Args...> fmt, Args&&... args) {
 	timeinfo = localtime ( &rawtime );
 	strftime(buffer, 127, "[%d/%m/%Y %H:%M:%S] ", timeinfo);
 
-	std::string line = std::format("{}{}: {}", buffer, _head, std::format(fmt, std::forward<Args>(args)...));
+	std::string message = std::format(fmt, std::forward<Args>(args)...);
+	std::string line = std::format("{}{}: {}\n", buffer, _head, message);
 
-	std::println(_stream, "{}", line);
-	writeToFile(line + "\n");
+	syslog(LOG_INFO, "%s", message.c_str());
+	std::print(_stream, "{}", line);
+	writeToFile(line);
 }
 
 #endif // LOGGER_HPP
