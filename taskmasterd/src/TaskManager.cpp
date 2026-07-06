@@ -176,15 +176,20 @@ void TaskManager::handleDeath(pid_t pid, int32_t status) {
 				auto                          time = _tasksConfs[name._name].start_time.value();
 				std::chrono::duration<double> diff = end - task.getStart();
 
-				if (diff < std::chrono::seconds(time))
-					task.status = State::backOff;
+				if (diff < std::chrono::seconds(time)) {
+					if (_tasksConfs[name._name].getRestart() != "never") {
+						task.status = State::backOff;
+					}
+				}
 			}
 
 			if (WIFEXITED(status)) {
 				const auto exit_codes = _tasksConfs[name._name].getExitCodes();
 
 				if (std::ranges::find(exit_codes, WEXITSTATUS(status)) == exit_codes.end()) {
-					task.status = State::backOff;
+					if (_tasksConfs[name._name].getRestart() != "never") {
+						task.status = State::backOff;
+					}
 				}
 			}
 
@@ -192,7 +197,9 @@ void TaskManager::handleDeath(pid_t pid, int32_t status) {
 				const auto exp_sig = _tasksConfs[name._name].getStopSig();
 
 				if (WTERMSIG(status) != exp_sig && task.status != State::stopping) {
-					task.status = State::backOff;
+					if (_tasksConfs[name._name].getRestart() != "never") {
+						task.status = State::backOff;
+					}
 				} else {
 					task.status = State::stopped;
 				}

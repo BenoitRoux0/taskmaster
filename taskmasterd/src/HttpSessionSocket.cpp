@@ -112,7 +112,7 @@ HttpSessionSocket::HttpSessionSocket(Server& server, int sock): Socket(server, s
 void HttpSessionSocket::_handleEpollIn() {
 	char buffer[1024];
 
-	const int received = recv(_fd, buffer, 1024, 0);
+	const ssize_t received = recv(_fd, buffer, 1024, 0);
 
 	if (received <= 0) {
 		_server.remove(_fd);
