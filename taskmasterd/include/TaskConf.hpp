@@ -26,14 +26,14 @@ struct TaskConf {
 	std::optional<std::map<std::string, std::string>> env;
 
 	const std::string                  getCmd() const { return cmd; }
-	int                                getNumProcs() const { return num_procs.value_or(1); }
+	int                                getNumProcs() const { return std::max(num_procs.value_or(1), 0); }
 	bool                               getStartAtLaunch() const { return start_at_launch.value_or(true); }
 	std::string                        getRestart() const { return restart.value_or("unexpected"); }
 	std::vector<int>                   getExitCodes() const { return exit_codes.value_or({0}); }
-	std::chrono::milliseconds		   getStartTime() const { return std::chrono::milliseconds(stop_time.value_or(1)) * 1000; }
-	int                                getRetries() const { return retries.value_or(3); }
+	std::chrono::milliseconds		   getStartTime() const { return std::chrono::milliseconds(std::max(stop_time.value_or(1), 0)) * 1000; }
+	int                                getRetries() const { return std::max(retries.value_or(3), 0); }
 	int                                getStopSig() const { return stop_sig.value_or(SIGTERM); }
-	std::chrono::milliseconds          getStopTime() const { return std::chrono::milliseconds(stop_time.value_or(10)) * 1000; }
+	std::chrono::milliseconds          getStopTime() const { return std::chrono::milliseconds(std::max(stop_time.value_or(10), 0)) * 1000; }
 	std::string                        getStdIn() const { return std_in.value_or(""); }
 	std::string                        getStdOut() const { return std_out.value_or(""); }
 	std::string                        getStdErr() const { return std_err.value_or(""); }

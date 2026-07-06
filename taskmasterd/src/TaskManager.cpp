@@ -488,7 +488,7 @@ void TaskManager::_onWakeUp(std::chrono::milliseconds delta) {
 			continue;
 
 		if (task.status == State::backOff) {
-			if (_runningTasks[id].remainingTries == 0) {
+			if (_runningTasks[id].remainingTries <= 0) {
 				task.status = State::fatal;
 				continue;
 			}
