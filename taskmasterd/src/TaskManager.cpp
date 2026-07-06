@@ -217,7 +217,13 @@ void TaskManager::run() {
 	if (!_ready)
 		return;
 
-	_server.bind(54321);
+	int port = getEnv("TM_PORT", 54321);
+
+	if (port < 0 || port > 65535) {
+		return;
+	}
+
+	_server.bind(port);
 
 	if (!_server.isReady())
 		return;
