@@ -283,6 +283,8 @@ HttpResponse TaskManager::_onHttpRequest(const HttpRequest& request) {
 			}
 			if (request.getUrl().size() == 1 && request.getUrl()[0] == "reload") {
 				return this->_reloadConf(request);
+			} if (request.getUrl().size() == 1 && request.getUrl()[0] == "exit") {
+				return this->_exitDaemon(request);
 			}
 		}
 
