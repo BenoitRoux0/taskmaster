@@ -220,6 +220,7 @@ void TaskManager::run() {
 	int port = getEnv("TM_PORT", 54321);
 
 	if (port < 0 || port > 65535) {
+		std::println(stderr, "invalid port: {}", getEnv("TM_PORT", "undef"));
 		return;
 	}
 
@@ -310,7 +311,7 @@ void TaskManager::_onChildRequest(const signalfd_siginfo& siginfo) {
 			}
 			break;
 		case SIGHUP:
-			this->loadConf(std::nullopt);
+			this->reloadConf(getEnv("TM_CONF", "./conf.toml"));
 			break;
 		case SIGTERM:
 		case SIGINT:
