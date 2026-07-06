@@ -283,6 +283,8 @@ HttpResponse TaskManager::_onHttpRequest(const HttpRequest& request) {
 			}
 			if (request.getUrl().size() == 1 && request.getUrl()[0] == "reload") {
 				return this->_reloadConf(request);
+			} if (request.getUrl().size() == 1 && request.getUrl()[0] == "exit") {
+				return this->_exitDaemon(request);
 			}
 		}
 
@@ -543,7 +545,7 @@ TaskManager::TaskManager(bool daemonize) {
 		return;
 	}
 
-	if (daemon(0, 0) == -1) {
+	if (daemon(1, 0) == -1) {
 		error = strerror(errno);
 		_logger.write("daemon error: {}", error);
 		return;
