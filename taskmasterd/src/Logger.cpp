@@ -14,8 +14,10 @@ Logger::Logger(std::string head, std::FILE* stream): _head(std::move(head)), _st
 }
 
 Logger::~Logger() {
-	if (_logFile)
+	if (_logFile) {
+		std::println("closing logging file");
 		std::fclose(_logFile);
+	}
 
 	closelog();
 }
