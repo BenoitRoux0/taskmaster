@@ -1,33 +1,257 @@
-[programs."ls"]
-cmd = "ls -la $HOME"
-num_procs = 2
-start_at_launch = false
-workdir = "/tmp"
-std_out = "/tmp/taskmaster_ls.log"
-env = { HELLO = "World", TEST = "Mars" }
+################################################################################
+# TASKMASTER STRESS CONFIG
+################################################################################
 
-[programs.cat]
-cmd = "cat $HOME/.zshrc"
+[programs.sleep]
+cmd = "/bin/sleep 1000"
+num_procs = 1
 start_at_launch = true
-std_out = "/tmp/taskmaster_cat.log"
-std_err = "/tmp/taskmaster_cat_err.log"
-#env = { HELLO = "World", TEST = "Mars" }
+restart = "always"
+exit_codes = [0]
+start_time = 1
+retries = 3
+stop_sig = 15
+stop_time = 5
+std_out = "/tmp/taskmaster/sleep.out"
+std_err = "/tmp/taskmaster/sleep.err"
+workdir = "/tmp"
+umask = 0o022
+shell = "/bin/sh"
 
-[programs.cat.env]
-HELLO = "World"
-TEST = "Mars"
+[programs.sleep.env]
+NAME = "sleep"
+INSTANCE = "1"
+
+################################################################################
+
+[programs.worker_pool]
+cmd = "/bin/sleep 1000"
+num_procs = 5
+start_at_launch = true
+restart = "unexpected"
+exit_codes = [0, 2]
+start_time = 2
+retries = 5
+stop_sig = 2
+stop_time = 3
+std_out = "/tmp/taskmaster/workers.out"
+std_err = "/tmp/taskmaster/workers.err"
+workdir = "/usr"
+umask = 0o027
+shell = "/bin/bash"
+
+[programs.worker_pool.env]
+ROLE = "worker"
+ZONE = "eu-west"
+COLOR = "blue"
+
+################################################################################
+
+[programs.restart_loop]
+cmd = "/bin/false"
+num_procs = 2
+start_at_launch = true
+restart = "always"
+exit_codes = [1]
+start_time = 5
+retries = 10
+stop_sig = 9
+stop_time = 1
+std_out = "/tmp/taskmaster/false.out"
+std_err = "/tmp/taskmaster/false.err"
+workdir = "/"
+umask = 0o077
+shell = "/bin/sh"
+
+[programs.restart_loop.env]
+TEST = "restart-loop"
+
+################################################################################
+
+[programs.one_shot]
+cmd = "/bin/true"
+num_procs = 1
+start_at_launch = true
+restart = "never"
+exit_codes = [0]
+start_time = 1
+retries = 0
+stop_sig = 15
+stop_time = 2
+std_out = "/tmp/taskmaster/true.out"
+std_err = "/tmp/taskmaster/true.err"
+workdir = "/tmp"
+umask = 0o022
+shell = "/bin/sh"
+
+################################################################################
+
+[programs.stdout_spam]
+cmd = "/usr/bin/yes | head -100000"
+num_procs = 3
+start_at_launch = false
+restart = "never"
+exit_codes = [0]
+start_time = 1
+retries = 1
+stop_sig = 15
+stop_time = 2
+std_out = "/tmp/taskmaster/spam.out"
+std_err = "/tmp/taskmaster/spam.err"
+workdir = "/tmp"
+umask = 0o022
+shell = "/bin/bash"
+
+[programs.stdout_spam.env]
+LOAD = "high"
+
+################################################################################
+
+[programs.environment]
+cmd = "/usr/bin/env"
+num_procs = 1
+start_at_launch = false
+restart = "unexpected"
+exit_codes = [0]
+start_time = 2
+retries = 2
+stop_sig = 10
+stop_time = 4
+std_out = "/tmp/taskmaster/env.out"
+std_err = "/tmp/taskmaster/env.err"
+workdir = "/etc"
+umask = 0o002
+shell = "/bin/sh"
+
+[programs.environment.env]
+HELLO = "WORLD"
+FOO = "BAR"
+ABC = "XYZ"
+NUMBER = "42"
+EMPTY = ""
+LONG_VALUE = "abcdefghijklmnopqrstuvwxyz"
+
+################################################################################
+
+[programs.pool]
+cmd = "/bin/sleep 300"
+num_procs = 8
+start_at_launch = true
+restart = "always"
+exit_codes = [0]
+start_time = 3
+retries = 4
+stop_sig = 15
+stop_time = 10
+std_out = "/tmp/taskmaster/pool.out"
+std_err = "/tmp/taskmaster/pool.err"
+workdir = "/var/tmp"
+umask = 0o022
+shell = "/bin/sh"
+
+[programs.pool.env]
+POOL = "alpha"
+
+################################################################################
+
+[programs.large_pool]
+cmd = "/bin/sleep 9999"
+num_procs = 12
+start_at_launch = false
+restart = "unexpected"
+exit_codes = [0, 143]
+start_time = 10
+retries = 6
+stop_sig = 3
+stop_time = 20
+std_out = "/tmp/taskmaster/large.out"
+std_err = "/tmp/taskmaster/large.err"
+workdir = "/home"
+umask = 0o000
+shell = "/bin/bash"
+
+[programs.large_pool.env]
+BIG = "yes"
+CACHE = "enabled"
+VERSION = "1.0.0"
+
+################################################################################
 
 [programs.echo]
-cmd = "echo $HELLO"
+cmd = "echo Hello World"
+num_procs = 4
 start_at_launch = true
+restart = "never"
+exit_codes = [0]
+start_time = 1
+retries = 0
+stop_sig = 15
+stop_time = 1
+std_out = "/tmp/taskmaster/echo.out"
+std_err = "/tmp/taskmaster/echo.err"
 workdir = "/tmp"
-std_out = "/tmp/taskmaster_echo.log"
-env = { HELLO = "World", TEST = "Mars" }
+umask = 0o022
+shell = "/bin/sh"
 
-[programs."sleeper"]
-cmd = "sleep 30"
-num_procs = 3
+################################################################################
 
-[programs."sleeper_failed"]
-cmd = "sleep 30"
-start_time = 35
+[programs.date]
+cmd = "/bin/date"
+num_procs = 6
+start_at_launch = true
+restart = "unexpected"
+exit_codes = [0]
+start_time = 2
+retries = 2
+stop_sig = 2
+stop_time = 3
+std_out = "/tmp/taskmaster/date.out"
+std_err = "/tmp/taskmaster/date.err"
+workdir = "/tmp"
+umask = 0o022
+shell = "/bin/sh"
+
+[programs.date.env]
+TZ = "UTC"
+LANG = "C"
+LC_ALL = "C"
+
+################################################################################
+
+[programs.pwd]
+cmd = "/bin/pwd"
+num_procs = 1
+start_at_launch = false
+restart = "never"
+exit_codes = [0]
+start_time = 1
+retries = 1
+stop_sig = 15
+stop_time = 2
+std_out = "/tmp/taskmaster/pwd.out"
+std_err = "/tmp/taskmaster/pwd.err"
+workdir = "/usr/local"
+umask = 0o077
+shell = "/bin/sh"
+
+################################################################################
+
+[programs.massive]
+cmd = "/bin/sleep 50"
+num_procs = 20
+start_at_launch = true
+restart = "always"
+exit_codes = [0]
+start_time = 1
+retries = 100
+stop_sig = 15
+stop_time = 5
+std_out = "/tmp/taskmaster/massive.out"
+std_err = "/tmp/taskmaster/massive.err"
+workdir = "/tmp"
+umask = 0o022
+shell = "/bin/sh"
+
+[programs.massive.env]
+STRESS = "true"
+COUNT = "20"
