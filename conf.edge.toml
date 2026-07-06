@@ -18,7 +18,7 @@ num_procs = 1
 start_at_launch = true
 std_out = "/tmp/taskmaster-edge-defaults.out"
 std_err = "/tmp/taskmaster-edge-defaults.err"
-shell = "/bin/sh"
+
 
 ################################################################################
 
@@ -36,7 +36,7 @@ std_out = "/tmp/taskmaster-edge-env-usage.out"
 std_err = "/tmp/taskmaster-edge-env-usage.err"
 workdir = "/tmp"
 umask = 0o022
-shell = "/bin/sh"
+
 
 [programs.env_usage.env]
 EDGE_ONE = "alpha"
@@ -59,7 +59,7 @@ std_out = "/tmp/taskmaster-edge-multi.out"
 std_err = "/tmp/taskmaster-edge-multi.err"
 workdir = "/tmp"
 umask = 0o022
-shell = "/bin/sh"
+
 
 [programs.multi_proc_append.env]
 ROLE = "multi"
@@ -81,7 +81,7 @@ std_out = "/tmp/taskmaster-edge-stderr-only.out"
 std_err = "/tmp/taskmaster-edge-stderr-only.err"
 workdir = "/tmp"
 umask = 0o022
-shell = "/bin/sh"
+
 
 ################################################################################
 
@@ -99,7 +99,7 @@ std_out = "/tmp/taskmaster-edge-workdir-env.out"
 std_err = "/tmp/taskmaster-edge-workdir-env.err"
 workdir = "/tmp"
 umask = 0o027
-shell = "/bin/sh"
+
 
 [programs.workdir_env.env]
 EDGE_VAR = "alpha beta"
@@ -123,7 +123,7 @@ std_out = "/tmp/taskmaster-edge-stdin-cat.out"
 std_err = "/tmp/taskmaster-edge-stdin-cat.err"
 workdir = "/tmp"
 umask = 0o022
-shell = "/bin/sh"
+
 
 ################################################################################
 
@@ -141,7 +141,7 @@ std_out = "/tmp/taskmaster-edge-cat-missing.out"
 std_err = "/tmp/taskmaster-edge-cat-missing.err"
 workdir = "/tmp"
 umask = 0o022
-shell = "/bin/sh"
+
 
 ##start_at_launch = true##############################################################################
 
@@ -159,7 +159,7 @@ std_out = "/tmp/taskmaster-edge-bash.out"
 std_err = "/tmp/taskmaster-edge-bash.err"
 workdir = "/tmp"
 umask = 0o022
-shell = "/bin/bash"
+
 
 ################################################################################
 
@@ -177,7 +177,7 @@ std_out = "/tmp/taskmaster-edge-nonzero.out"
 std_err = "/tmp/taskmaster-edge-nonzero.err"
 workdir = "/tmp"
 umask = 0o022
-shell = "/bin/sh"
+
 
 ################################################################################
 
@@ -195,7 +195,7 @@ std_out = "/tmp/taskmaster-edge mixed streams.out"
 std_err = "/tmp/taskmaster-edge mixed streams.err"
 workdir = "/tmp"
 umask = 0o000
-shell = "/bin/sh"
+
 
 ################################################################################
 
@@ -213,7 +213,7 @@ std_out = "/tmp/taskmaster-edge-zero.out"
 std_err = "/tmp/taskmaster-edge-zero.err"
 workdir = "/tmp"
 umask = 0o022
-shell = "/bin/sh"
+
 
 ################################################################################
 
@@ -231,7 +231,7 @@ std_out = "/tmp/taskmaster-edge-pipe.out"
 std_err = "/tmp/taskmaster-edge-pipe.err"
 workdir = "/tmp"
 umask = 0o022
-shell = "/bin/sh"
+
 
 ################################################################################
 
@@ -249,6 +249,6 @@ std_out = "/tmp/taskmaster-edge-manual.out"
 std_err = "/tmp/taskmaster-edge-manual.err"
 workdir = "/tmp"
 umask = 0o022
-shell = "/bin/sh"
+
 
 

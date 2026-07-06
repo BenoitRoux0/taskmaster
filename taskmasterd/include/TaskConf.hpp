@@ -22,7 +22,6 @@ struct TaskConf {
 	std::optional<std::string>                        std_err;
 	std::optional<std::string>                        workdir;
 	std::optional<mode_t>                             umask;
-	std::optional<std::string>                        shell;
 	std::optional<std::map<std::string, std::string>> env;
 
 	const std::string                  getCmd() const { return cmd; }
@@ -39,7 +38,6 @@ struct TaskConf {
 	std::string                        getStdErr() const { return std_err.value_or(""); }
 	std::string                        getWorkDir() const { return workdir.value_or(""); }
 	mode_t                             getUmask() const { return umask.value_or(022); }
-	std::string                        getShell() const { return shell.value_or("/bin/bash"); }
 	std::map<std::string, std::string> getEnv() const { return env.value_or({}); }
 	bool operator==(const TaskConf& task_conf) const = default;
 };
@@ -59,7 +57,6 @@ TOML11_DEFINE_CONVERSION_NON_INTRUSIVE(TaskConf,
                                        std_err,
                                        workdir,
                                        umask,
-                                       shell,
                                        env
 )
 

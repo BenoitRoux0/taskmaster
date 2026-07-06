@@ -16,5 +16,4 @@ Task::Task(const TaskConf& conf) {
 	stdOut = conf.std_out.value_or("");
 	workDir = conf.workdir.value_or("");
 	umask = conf.umask.value_or(0);
-	shell = conf.shell.value_or("bash");
 }

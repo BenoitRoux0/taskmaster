@@ -16,7 +16,7 @@ std_out = "/tmp/taskmaster/sleep.out"
 std_err = "/tmp/taskmaster/sleep.err"
 workdir = "/tmp"
 umask = 0o022
-shell = "/bin/sh"
+
 
 [programs.sleep.env]
 NAME = "sleep"
@@ -38,7 +38,7 @@ std_out = "/tmp/taskmaster/workers.out"
 std_err = "/tmp/taskmaster/workers.err"
 workdir = "/usr"
 umask = 0o027
-shell = "/bin/bash"
+
 
 [programs.worker_pool.env]
 ROLE = "worker"
@@ -61,7 +61,6 @@ std_out = "/tmp/taskmaster/false.out"
 std_err = "/tmp/taskmaster/false.err"
 workdir = "/"
 umask = 0o077
-shell = "/bin/sh"
 
 [programs.restart_loop.env]
 TEST = "restart-loop"
@@ -82,7 +81,7 @@ std_out = "/tmp/taskmaster/true.out"
 std_err = "/tmp/taskmaster/true.err"
 workdir = "/tmp"
 umask = 0o022
-shell = "/bin/sh"
+
 
 ################################################################################
 
@@ -100,7 +99,7 @@ std_out = "/tmp/taskmaster/spam.out"
 std_err = "/tmp/taskmaster/spam.err"
 workdir = "/tmp"
 umask = 0o022
-shell = "/bin/bash"
+
 
 [programs.stdout_spam.env]
 LOAD = "high"
@@ -121,7 +120,7 @@ std_out = "/tmp/taskmaster/env.out"
 std_err = "/tmp/taskmaster/env.err"
 workdir = "/etc"
 umask = 0o002
-shell = "/bin/sh"
+
 
 [programs.environment.env]
 HELLO = "WORLD"
@@ -147,7 +146,7 @@ std_out = "/tmp/taskmaster/pool.out"
 std_err = "/tmp/taskmaster/pool.err"
 workdir = "/var/tmp"
 umask = 0o022
-shell = "/bin/sh"
+
 
 [programs.pool.env]
 POOL = "alpha"
@@ -168,7 +167,7 @@ std_out = "/tmp/taskmaster/large.out"
 std_err = "/tmp/taskmaster/large.err"
 workdir = "/home"
 umask = 0o000
-shell = "/bin/bash"
+
 
 [programs.large_pool.env]
 BIG = "yes"
@@ -191,7 +190,7 @@ std_out = "/tmp/taskmaster/echo.out"
 std_err = "/tmp/taskmaster/echo.err"
 workdir = "/tmp"
 umask = 0o022
-shell = "/bin/sh"
+
 
 ################################################################################
 
@@ -209,7 +208,7 @@ std_out = "/tmp/taskmaster/date.out"
 std_err = "/tmp/taskmaster/date.err"
 workdir = "/tmp"
 umask = 0o022
-shell = "/bin/sh"
+
 
 [programs.date.env]
 TZ = "UTC"
@@ -232,7 +231,7 @@ std_out = "/tmp/taskmaster/pwd.out"
 std_err = "/tmp/taskmaster/pwd.err"
 workdir = "/usr/local"
 umask = 0o077
-shell = "/bin/sh"
+
 
 ################################################################################
 
@@ -250,7 +249,7 @@ std_out = "/tmp/taskmaster/massive.out"
 std_err = "/tmp/taskmaster/massive.err"
 workdir = "/tmp"
 umask = 0o022
-shell = "/bin/sh"
+
 
 [programs.massive.env]
 STRESS = "true"

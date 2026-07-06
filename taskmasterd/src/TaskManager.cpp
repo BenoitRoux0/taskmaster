@@ -27,15 +27,14 @@ void TaskManager::loadConf(const std::optional<std::string>& confFile) {
 
 		_tasksConfs = toml::find<std::map<std::string, TaskConf>>(confParsed, "programs");
 	} catch (toml::syntax_error& e) {
-		std::print("{}", e.what());
+		_logger.write("{}", e.what());
 	}
 }
 
 void TaskManager::stopAndRemove(const std::string& name, const TaskConf& conf) {
 	std::vector<RunningTaskId> ids;
 	for (const auto& [id, task]: _runningTasks) {
-		if (id._name == name && (task.status == State::running || task.status == State::starting
-		                         || task.status == State::fatal || task.status == State::stopped))
+		if (id._name == name && (task._pid != -1))
 			ids.push_back(id);
 	}
 
@@ -155,9 +154,8 @@ void TaskManager::stop() {
 	for (auto& [taskId, task]: _runningTasks) {
 		task.remainingTries = 0;
 
-		if (task.status == State::starting || task.status == State::running) {
-			stopTask(taskId._name);
-		}
+		stopTask(taskId._name);
+		// task.afterRefresh = RefreshState::remove;
 	}
 
 	_stopped = true;
@@ -220,14 +218,16 @@ void TaskManager::run() {
 	int port = getEnv("TM_PORT", 54321);
 
 	if (port < 0 || port > 65535) {
-		std::println(stderr, "invalid port: {}", getEnv("TM_PORT", "undef"));
+		_logger.write("invalid port: {}", getEnv("TM_PORT", "undef"));
 		return;
 	}
 
 	_server.bind(port);
 
-	if (!_server.isReady())
+	if (!_server.isReady()) {
+		_logger.write("server not ready");
 		return;
+	}
 
 	_server.onHttpRequest([&](const auto& request) { return this->_onHttpRequest(request); });
 	_server.onChildRequest([&](const auto& siginfo) { this->_onChildRequest(siginfo); });
@@ -235,7 +235,6 @@ void TaskManager::run() {
 
 	sigset_t set;
 	sigemptyset(&set);
-	sigaddset(&set, SIGCHLD);
 	sigaddset(&set, SIGHUP);
 	sigaddset(&set, SIGTERM);
 	sigaddset(&set, SIGINT);
@@ -284,6 +283,9 @@ HttpResponse TaskManager::_onHttpRequest(const HttpRequest& request) {
 			if (request.getUrl().size() == 1 && request.getUrl()[0] == "reload") {
 				return this->_reloadConf(request);
 			}
+			if (request.getUrl().size() == 1 && request.getUrl()[0] == "exit") {
+				return this->_exitDaemon(request);
+			}
 		}
 
 		return {"404", ""};
@@ -297,25 +299,13 @@ HttpResponse TaskManager::_onHttpRequest(const HttpRequest& request) {
 }
 
 void TaskManager::_onChildRequest(const signalfd_siginfo& siginfo) {
-	int pid = 1;
-	int status;
-
 	switch (siginfo.ssi_signo) {
-		case SIGCHLD:
-			_logger.write("A child is dead");
-			while (pid > 0) {
-				pid = waitpid(-1, &status, WNOHANG);
-
-				if (pid > 0)
-					this->handleDeath(pid, status);
-			}
-			break;
 		case SIGHUP:
 			this->reloadConf(getEnv("TM_CONF", "./conf.toml"));
 			break;
 		case SIGTERM:
 		case SIGINT:
-			this->stop();
+			stop();
 			break;
 		default: ;
 	}
@@ -428,10 +418,10 @@ void TaskManager::startTask(const std::string& name, int index, const TaskConf& 
 	pid_t pid = fork();
 	if (pid == 0) {
 		configureTask(taskConf);
-		std::string shell = taskConf.getShell();
+		std::string shell = "/bin/bash";
 		_lockFile.unlock();
 
-		execle(shell.c_str(), shell.c_str(), "-c", taskConf.cmd.c_str(), nullptr, environ);
+		execle(shell.c_str(), name.c_str(), "-c", taskConf.cmd.c_str(), nullptr, environ);
 
 		perror("execle");
 		exit(1);
@@ -440,11 +430,28 @@ void TaskManager::startTask(const std::string& name, int index, const TaskConf& 
 		_runningTasks[id].status = State::starting;
 		_logger.write("Launching program: {}_{}", name, index);
 	} else {
-		perror("fork");
+		_logger.write("fork: {}", strerror(errno));
 	}
 }
 
+bool TaskManager::allStopped() {
+	for (auto& [id, task]: _runningTasks) {
+		if (task.status == State::starting || task.status == State::running || task.status == State::stopping) {
+			return false;
+		}
+	}
+	return true;
+}
+
 void TaskManager::_onWakeUp(std::chrono::milliseconds delta) {
+	int status;
+	int pid = waitpid(-1, &status, WNOHANG);
+
+	while (pid > 0) {
+		this->handleDeath(pid, status);
+		pid = waitpid(-1, &status, WNOHANG);
+	}
+
 	for (auto& [id, task]: _runningTasks) {
 		if (id._index >= _tasksConfs[id._name].getNumProcs()) {
 			stopTask(id);
@@ -484,10 +491,7 @@ void TaskManager::_onWakeUp(std::chrono::milliseconds delta) {
 		if (task.status == State::starting && now - task.getStart() >= _tasksConfs[id._name].getStartTime())
 			task.status = State::running;
 
-		if (_tasksConfs[id._name].getRestart() == "never")
-			continue;
-
-		if (task.status == State::backOff) {
+		if (task.status == State::backOff && _tasksConfs[id._name].getRestart() != "never") {
 			if (_runningTasks[id].remainingTries <= 0) {
 				task.status = State::fatal;
 				continue;
@@ -500,15 +504,6 @@ void TaskManager::_onWakeUp(std::chrono::milliseconds delta) {
 			startTask(id._name, id._index, _tasksConfs[id._name], false);
 			--_runningTasks[id].remainingTries;
 		}
-	}
-
-	if (_stopped) {
-		for (auto& [id, task]: _runningTasks) {
-			if (task.status == State::starting || task.status == State::running || task.status == State::stopping) {
-				return;
-			}
-		}
-		_server.stop();
 	}
 
 	for (const auto& task: _toRemove) {
@@ -532,6 +527,12 @@ void TaskManager::_onWakeUp(std::chrono::milliseconds delta) {
 	_toRefreshAndStart.clear();
 
 	_reloading = _isReloading();
+
+	if (_stopped) {
+		if (allStopped()) {
+			_server.stop();
+		}
+	}
 }
 
 TaskManager::TaskManager(bool daemonize) {
@@ -539,11 +540,11 @@ TaskManager::TaskManager(bool daemonize) {
 
 	if (!daemonize) {
 		_ready = true;
-		_logger.write("TaskMaster ready");
+		_logger.write("TaskMaster ready not daemonize");
 		return;
 	}
 
-	if (daemon(0, 0) == -1) {
+	if (daemon(1, 1) == -1) {
 		error = strerror(errno);
 		_logger.write("daemon error: {}", error);
 		return;
@@ -593,7 +594,7 @@ HttpResponse TaskManager::_getTaskDetails(const HttpRequest& request) {
 
 void TaskManager::stopTask(const std::string& name) {
 	for (auto& [id, task]: _runningTasks) {
-		if (id._name == name && (task.status == State::running || task.status == State::starting)) {
+		if (id._name == name && task._pid != -1) {
 			auto sig = _tasksConfs[id._name].getStopSig();
 			task.setStopTime(_tasksConfs[id._name].getStopTime());
 			_stoppingTasks.insert(id);

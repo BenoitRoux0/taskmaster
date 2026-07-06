@@ -61,6 +61,7 @@ private:
 	std::map<RunningTaskId, RunningTask> _runningTasks{};
 
 	void startTask(const std::string& name, int index, const TaskConf& taskConf, bool resetRetries);
+	bool allStopped();
 };
 
 #endif // TASK_MANAGER_HPP
