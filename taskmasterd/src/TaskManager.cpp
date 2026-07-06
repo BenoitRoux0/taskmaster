@@ -132,8 +132,6 @@ void TaskManager::reloadConf(const std::optional<std::string>& confFile) {
 				}
 
 				stopTask(name);
-				// stopAndRemove(name, oldConfIt->second);
-				// _tasksConfs[name] = newConf;
 
 				int numProcs = newConf.getNumProcs();
 				for (int i = 0; i < numProcs; ++i) {
@@ -447,7 +445,6 @@ void TaskManager::_onWakeUp(std::chrono::milliseconds delta) {
 		if (task.status != State::starting && task.status != State::running && task.status != State::stopping && task.
 		    afterRefresh == RefreshState::reload) {
 			_tasksConfs[id._name] = _newConfs[id._name];
-			// _newConfs.erase(id._name);
 			_toRefresh.push_back(id);
 			task.afterRefresh = RefreshState::nothing;
 		}
