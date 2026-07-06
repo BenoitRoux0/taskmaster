@@ -1,0 +1,254 @@
+################################################################################
+# TASKMASTER EDGE-CASE CONFIG
+#
+# This file is meant to stress parser/runtime boundaries:
+# - missing optional fields
+# - zero process counts
+# - multiple procs writing to the same file
+# - stdout/stderr separation
+# - shell-specific syntax
+# - stdin redirection
+# - paths with spaces
+# - non-zero exit codes that should not restart
+################################################################################
+
+[programs.defaults_and_echo]
+cmd = "printf 'defaults-and-echo\\n'"
+num_procs = 1
+start_at_launch = true
+std_out = "/tmp/taskmaster-edge-defaults.out"
+std_err = "/tmp/taskmaster-edge-defaults.err"
+shell = "/bin/sh"
+
+################################################################################
+
+[programs.env_usage]
+cmd = "printf '%s|%s|%s\\n' \"$EDGE_ONE\" \"$EDGE_TWO\" \"$EDGE_EMPTY\""
+num_procs = 1
+start_at_launch = true
+restart = "never"
+exit_codes = [0]
+start_time = 0
+retries = 0
+stop_sig = 15
+stop_time = 1
+std_out = "/tmp/taskmaster-edge-env-usage.out"
+std_err = "/tmp/taskmaster-edge-env-usage.err"
+workdir = "/tmp"
+umask = 0o022
+shell = "/bin/sh"
+
+[programs.env_usage.env]
+EDGE_ONE = "alpha"
+EDGE_TWO = "beta value"
+EDGE_EMPTY = ""
+
+################################################################################
+
+[programs.multi_proc_append]
+cmd = "printf 'multi-proc\\n'"
+num_procs = 4
+start_at_launch = true
+restart = "never"
+exit_codes = [0]
+start_time = 0
+retries = 0
+stop_sig = 15
+stop_time = 1
+std_out = "/tmp/taskmaster-edge-multi.out"
+std_err = "/tmp/taskmaster-edge-multi.err"
+workdir = "/tmp"
+umask = 0o022
+shell = "/bin/sh"
+
+[programs.multi_proc_append.env]
+ROLE = "multi"
+COUNT = "4"
+
+################################################################################
+
+[programs.stderr_only]
+cmd = "printf 'warn-one\\n' 1>&2"
+num_procs = 1
+start_at_launch = true
+restart = "never"
+exit_codes = [0]
+start_time = 0
+retries = 0
+stop_sig = 15
+stop_time = 1
+std_out = "/tmp/taskmaster-edge-stderr-only.out"
+std_err = "/tmp/taskmaster-edge-stderr-only.err"
+workdir = "/tmp"
+umask = 0o022
+shell = "/bin/sh"
+
+################################################################################
+
+[programs.workdir_env]
+cmd = "pwd; printf '%s|%s|%s\\n' \"$EDGE_VAR\" \"$EDGE_SPACES\" \"${EMPTY:-unset}\""
+num_procs = 1
+start_at_launch = true
+restart = "never"
+exit_codes = [0]
+start_time = 0
+retries = 0
+stop_sig = 9
+stop_time = 1
+std_out = "/tmp/taskmaster-edge-workdir-env.out"
+std_err = "/tmp/taskmaster-edge-workdir-env.err"
+workdir = "/tmp"
+umask = 0o027
+shell = "/bin/sh"
+
+[programs.workdir_env.env]
+EDGE_VAR = "alpha beta"
+EDGE_SPACES = "value with spaces"
+EMPTY = ""
+
+################################################################################
+
+[programs.stdin_cat]
+cmd = "cat"
+num_procs = 1
+start_at_launch = true
+restart = "never"
+exit_codes = [0]
+start_time = 0
+retries = 0
+stop_sig = 15
+stop_time = 1
+std_in = "/home/beroux/projects/taskmaster/edge_input.txt"
+std_out = "/tmp/taskmaster-edge-stdin-cat.out"
+std_err = "/tmp/taskmaster-edge-stdin-cat.err"
+workdir = "/tmp"
+umask = 0o022
+shell = "/bin/sh"
+
+################################################################################
+
+[programs.cat_missing_file]
+cmd = "echo hello; cat /home/beroux/projects/taskmaster/this-file-should-not-exist"
+num_procs = 1
+start_at_launch = true
+restart = "never"
+exit_codes = [1]
+start_time = 0
+retries = 0
+stop_sig = 15
+stop_time = 1
+std_out = "/tmp/taskmaster-edge-cat-missing.out"
+std_err = "/tmp/taskmaster-edge-cat-missing.err"
+workdir = "/tmp"
+umask = 0o022
+shell = "/bin/sh"
+
+##start_at_launch = true##############################################################################
+
+[programs.bash_features]
+cmd = "if [[ 4 -eq 4 ]]; then printf 'bash-ok\\n'; fi"
+num_procs = 1
+start_at_launch = true
+restart = "never"
+exit_codes = [0]
+start_time = 0
+retries = 0
+stop_sig = 15
+stop_time = 1
+std_out = "/tmp/taskmaster-edge-bash.out"
+std_err = "/tmp/taskmaster-edge-bash.err"
+workdir = "/tmp"
+umask = 0o022
+shell = "/bin/bash"
+
+################################################################################
+
+[programs.nonzero_unexpected]
+cmd = "printf 'exit-two\\n'; exit 2"
+num_procs = 1
+start_at_launch = true
+restart = "unexpected"
+exit_codes = [0, 2]
+start_time = 0
+retries = 2
+stop_sig = 15
+stop_time = 1
+std_out = "/tmp/taskmaster-edge-nonzero.out"
+std_err = "/tmp/taskmaster-edge-nonzero.err"
+workdir = "/tmp"
+umask = 0o022
+shell = "/bin/sh"
+
+################################################################################
+
+[programs.mixed_streams_and_quotes]
+cmd = "printf 'out-a\\n'; printf 'err-a\\n' 1>&2; printf 'out-b\\n'"
+num_procs = 1
+start_at_launch = true
+restart = "never"
+exit_codes = [0]
+start_time = 0
+retries = 0
+stop_sig = 3
+stop_time = 1
+std_out = "/tmp/taskmaster-edge mixed streams.out"
+std_err = "/tmp/taskmaster-edge mixed streams.err"
+workdir = "/tmp"
+umask = 0o000
+shell = "/bin/sh"
+
+################################################################################
+
+[programs.zero_processes]
+cmd = "printf 'zero-processes\\n'"
+num_procs = 0
+start_at_launch = true
+restart = "always"
+exit_codes = [0]
+start_time = 0
+retries = 7
+stop_sig = 15
+stop_time = 1
+std_out = "/tmp/taskmaster-edge-zero.out"
+std_err = "/tmp/taskmaster-edge-zero.err"
+workdir = "/tmp"
+umask = 0o022
+shell = "/bin/sh"
+
+################################################################################
+
+[programs.pipe_case]
+cmd = "printf 'pipe-case\\n' | tr a-z A-Z"
+num_procs = 1
+start_at_launch = true
+restart = "never"
+exit_codes = [0]
+start_time = 0
+retries = 0
+stop_sig = 15
+stop_time = 1
+std_out = "/tmp/taskmaster-edge-pipe.out"
+std_err = "/tmp/taskmaster-edge-pipe.err"
+workdir = "/tmp"
+umask = 0o022
+shell = "/bin/sh"
+
+################################################################################
+
+[programs.manual_only]
+cmd = "printf 'manual-only\\n'"
+num_procs = 1
+start_at_launch = false
+restart = "never"
+exit_codes = [0]
+start_time = 0
+retries = 0
+stop_sig = 15
+stop_time = 1
+std_out = "/tmp/taskmaster-edge-manual.out"
+std_err = "/tmp/taskmaster-edge-manual.err"
+workdir = "/tmp"
+umask = 0o022
+shell = "/bin/sh"
+
+
