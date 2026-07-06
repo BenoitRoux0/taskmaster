@@ -10,16 +10,12 @@
 #include "CommandParser.hpp"
 #include "ClientConfig.hpp"
 #include "deserializer.hpp"
-#include "../../cmake-build-debug-gcc-16.1/_deps/toml11-src/include/toml11/result.hpp"
 
 class HttpClient {
 public:
 	HttpClient();
 	HttpClient(const ClientConfig& config);
 	~HttpClient();
-
-	// std::string get(const std::string& url, const std::string& arg);
-	// std::string post(const std::string& url, const std::string& arg);
 
 	template <typename Out, class... Args>
 	std::expected<Out, std::string> get(std::format_string<Args...> urlFmt, Args&&... args);
