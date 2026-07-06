@@ -545,7 +545,7 @@ TaskManager::TaskManager(bool daemonize) {
 		return;
 	}
 
-	if (daemon(1, 0) == -1) {
+	if (daemon(0, 0) == -1) {
 		error = strerror(errno);
 		_logger.write("daemon error: {}", error);
 		return;
