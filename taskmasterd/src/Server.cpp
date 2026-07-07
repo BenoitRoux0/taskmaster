@@ -33,8 +33,8 @@ void Server::run() {
 		}
 
 		for (auto toRemove: _toRemove) {
-			_sockets.erase(toRemove);
 			epoll_ctl(_epollFd, EPOLL_CTL_DEL, toRemove, nullptr);
+			_sockets.erase(toRemove);
 		}
 
 		_toRemove.clear();

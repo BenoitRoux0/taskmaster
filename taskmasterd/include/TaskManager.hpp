@@ -22,7 +22,7 @@ public:
 	void reloadConf(const std::optional<std::string>& confFile);
 	void stop();
 	void handleDeath(pid_t pid, int32_t status);
-	void stopAndRemove(const std::string& name, const TaskConf& conf);
+	void stopAndRemove(const std::string& name, const TaskConf& conf, bool restartAfter);
 
 	void run();
 	void startPrograms();
@@ -44,6 +44,7 @@ private:
 	std::vector<RunningTaskId>      _toRemove;
 	std::vector<RunningTaskId>      _toRefresh;
 	std::vector<RunningTaskId>      _toRefreshAndStart;
+	std::vector<RunningTaskId>      _toRestart;
 
 	HttpResponse _getTaskDetails(const HttpRequest& request);
 	void         stopTask(const std::string& name);
