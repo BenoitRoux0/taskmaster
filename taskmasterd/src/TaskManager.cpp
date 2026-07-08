@@ -31,46 +31,15 @@ void TaskManager::loadConf(const std::optional<std::string>& confFile) {
 	}
 }
 
-void TaskManager::stopAndRemove(const std::string& name, const TaskConf& conf) {
-	std::vector<RunningTaskId> ids;
-	for (const auto& [id, task]: _runningTasks) {
-		if (id._name == name && (task._pid != -1))
-			ids.push_back(id);
-	}
-
-	for (const auto& id: ids) {
-		auto it = _runningTasks.find(id);
-		if (it == _runningTasks.end())
-			continue;
-
-		const pid_t pid = it->second._pid;
-		if (pid > 0) {
-			kill(pid, conf.getStopSig());
-			auto deadline = std::chrono::steady_clock::now() + conf.getStopTime();
-			int  status = 0;
-
-			while (true) {
-				pid_t result = waitpid(pid, &status, WNOHANG);
-				if (result == pid || result == -1)
-					break;
-				if (std::chrono::steady_clock::now() >= deadline) {
-					kill(pid, SIGKILL);
-					for (;;) {
-						result = waitpid(pid, &status, 0);
-						if (result == pid || result == -1)
-							break;
-						if (result == -1)
-							continue;
-						break;
-					}
-					break;
-				}
-				usleep(5000);
-			}
+void TaskManager::stopAndRemove(const std::string& name, const TaskConf& conf, bool restartAfter) {
+	for (auto& [id, task]: _runningTasks) {
+		if (id._name == name && task._pid != -1) {
+			task.setStopTime(conf.getStopTime());
+			_stoppingTasks.insert(id);
+			task.status = State::stopping;
+			task.afterRefresh = restartAfter ? RefreshState::restart : RefreshState::remove;
+			kill(task._pid, conf.getStopSig());
 		}
-
-		_stoppingTasks.erase(id);
-		_runningTasks.erase(it);
 	}
 };
 
@@ -488,10 +457,16 @@ void TaskManager::_onWakeUp(std::chrono::milliseconds delta) {
 			task.afterRefresh = RefreshState::nothing;
 		}
 
+		if (task.status != State::starting && task.status != State::running && task.status != State::stopping && task.
+		    afterRefresh == RefreshState::restart) {
+			_toRestart.push_back(id);
+			task.afterRefresh = RefreshState::nothing;
+		}
+
 		if (task.status == State::starting && now - task.getStart() >= _tasksConfs[id._name].getStartTime())
 			task.status = State::running;
 
-		if (task.status == State::backOff && _tasksConfs[id._name].getRestart() != "never") {
+		if (!_stopped && task.status == State::backOff && _tasksConfs[id._name].getRestart() != "never") {
 			if (_runningTasks[id].remainingTries <= 0) {
 				task.status = State::fatal;
 				continue;
@@ -499,8 +474,8 @@ void TaskManager::_onWakeUp(std::chrono::milliseconds delta) {
 
 			startTask(id._name, id._index, _tasksConfs[id._name], false);
 			--_runningTasks[id].remainingTries;
-		} else if (task.status == State::exited && _tasksConfs[id._name].getRestart() == "always" && _runningTasks[id].
-		           remainingTries > 0) {
+		} else if (!_stopped && task.status == State::exited && _tasksConfs[id._name].getRestart() == "always" &&
+		           _runningTasks[id].remainingTries > 0) {
 			startTask(id._name, id._index, _tasksConfs[id._name], false);
 			--_runningTasks[id].remainingTries;
 		}
@@ -525,6 +500,12 @@ void TaskManager::_onWakeUp(std::chrono::milliseconds delta) {
 	}
 
 	_toRefreshAndStart.clear();
+
+	for (const auto& task: _toRestart) {
+		startTask(task._name, task._index, _tasksConfs[task._name], true);
+	}
+
+	_toRestart.clear();
 
 	_reloading = _isReloading();
 
@@ -689,14 +670,18 @@ HttpResponse TaskManager::_restartTask(const HttpRequest& request) {
 
 	const TaskConf& conf = confIt->second;
 
-	stopAndRemove(name, conf);
+	stopAndRemove(name, conf, true);
 
 	for (int i = 0; i < conf.getNumProcs(); ++i) {
-		startProgram(name, i);
+		RunningTaskId id(name, i);
+		auto          it = _runningTasks.find(id);
+		if (it == _runningTasks.end() || it->second._pid == -1) {
+			startProgram(name, i);
+		}
 	}
 
-	_logger.write("Program '{}' restarted", name);
-	return {"\"Program restarted\""};
+	_logger.write("Program '{}' restarting", name);
+	return {"\"Program restarting\""};
 }
 
 HttpResponse TaskManager::_reloadConf(const HttpRequest& request) {
@@ -717,9 +702,10 @@ HttpResponse TaskManager::_exitDaemon(const HttpRequest& request) {
 	}
 
 	for (const auto& [name, conf]: _tasksConfs) {
-		stopAndRemove(name, conf);
+		stopAndRemove(name, conf, false);
 	}
 
-	_server.stopAfterSend();
+	_stopped = true;
+
 	return {"\"Daemon stopped\""};
 }

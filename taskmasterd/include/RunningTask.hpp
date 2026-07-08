@@ -8,7 +8,8 @@ enum class RefreshState {
 	nothing,
 	reload,
 	reloadAndRestart,
-	remove
+	remove,
+	restart
 };
 
 class RunningTask {
