@@ -33,8 +33,12 @@ public:
 	void setStopTime(std::chrono::milliseconds ms);
 	bool decreaseStopTime(std::chrono::milliseconds ms);
 
+	void start() {
+		_start = std::chrono::current_zone()->to_local(std::chrono::system_clock::now());
+	}
+
 private:
-	std::chrono::time_point<std::chrono::local_t, std::chrono::nanoseconds> start {std::chrono::current_zone()->to_local(std::chrono::system_clock::now())};
+	std::chrono::time_point<std::chrono::local_t, std::chrono::nanoseconds> _start {std::chrono::current_zone()->to_local(std::chrono::system_clock::now())};
 	std::chrono::time_point<std::chrono::local_t, std::chrono::nanoseconds> end;
 
 	std::chrono::milliseconds remainingStopTime{-1};

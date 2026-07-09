@@ -401,6 +401,7 @@ void TaskManager::startTask(const std::string& name, int index, const TaskConf& 
 		exit(1);
 	} else if (pid > 0) {
 		_runningTasks[id]._pid = pid;
+		_runningTasks[id].start();
 		_runningTasks[id].status = State::starting;
 		_logger.write("Launching program: {}_{}", name, index);
 	} else {
