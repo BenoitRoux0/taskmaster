@@ -482,7 +482,7 @@ void TaskManager::_onWakeUp(std::chrono::milliseconds delta) {
 			--_runningTasks[id].remainingTries;
 		} else if (!_stopped && task.status == State::exited && _tasksConfs[id._name].getRestart() == "always") {
 			if (_runningTasks[id].remainingTries <= 0) {
-				task.status = State::fatal;
+				task.status = State::backOff;
 				continue;
 			}
 
