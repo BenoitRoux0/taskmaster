@@ -20,6 +20,10 @@ void RunningTask::dead(std::chrono::time_point<std::chrono::local_t, std::chrono
 	end = time;
 }
 
+void RunningTask::setStart(std::chrono::time_point<std::chrono::local_t, std::chrono::nanoseconds> time) {
+	start = time;
+}
+
 void RunningTask::setStopTime(const std::chrono::milliseconds ms) {
 	remainingStopTime = ms;
 }

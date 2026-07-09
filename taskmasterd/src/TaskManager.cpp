@@ -402,6 +402,7 @@ void TaskManager::startTask(const std::string& name, int index, const TaskConf& 
 	} else if (pid > 0) {
 		_runningTasks[id]._pid = pid;
 		_runningTasks[id].status = State::starting;
+		_runningTasks[id].setStart(std::chrono::current_zone()->to_local(std::chrono::system_clock::now()));
 		_logger.write("Launching program: {}_{}", name, index);
 	} else {
 		_logger.write("fork: {}", strerror(errno));
@@ -479,8 +480,12 @@ void TaskManager::_onWakeUp(std::chrono::milliseconds delta) {
 
 			startTask(id._name, id._index, _tasksConfs[id._name], false);
 			--_runningTasks[id].remainingTries;
-		} else if (!_stopped && task.status == State::exited && _tasksConfs[id._name].getRestart() == "always" &&
-		           _runningTasks[id].remainingTries > 0) {
+		} else if (!_stopped && task.status == State::exited && _tasksConfs[id._name].getRestart() == "always") {
+			if (_runningTasks[id].remainingTries <= 0) {
+				task.status = State::fatal;
+				continue;
+			}
+
 			startTask(id._name, id._index, _tasksConfs[id._name], false);
 			--_runningTasks[id].remainingTries;
 		}

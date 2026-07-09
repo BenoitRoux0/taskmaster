@@ -23,6 +23,8 @@ public:
 
 	void dead(std::chrono::time_point<std::chrono::local_t, std::chrono::nanoseconds> time);
 
+	void setStart(std::chrono::time_point<std::chrono::local_t, std::chrono::nanoseconds> time);
+
 	// private:
 	pid_t        _pid{-1};
 	State        status{State::stopped};
