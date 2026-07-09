@@ -92,17 +92,25 @@ void TaskManager::reloadConf(const std::optional<std::string>& confFile) {
 			} else if (oldConfIt->second != newConf) {
 				_logger.write("Program '{}' configuration changed, restarting", name);
 
-				_newConfs[name] = newConf;
+				_tasksConfs[name].num_procs = newConf.num_procs;
 
-				for (auto& [id, task]: _runningTasks) {
-					if (id._name == name) {
-						task.afterRefresh = RefreshState::reload;
-						if (task.status == State::starting || task.status == State::running)
-							task.afterRefresh = RefreshState::reloadAndRestart;
+				if (oldConfIt->second.mustReload(newConf)) {
+					_newConfs[name] = newConf;
+
+					for (auto& [id, task]: _runningTasks) {
+						if (id._name == name) {
+							task.afterRefresh = RefreshState::reload;
+							if (task.status == State::starting || task.status == State::running)
+								task.afterRefresh = RefreshState::reloadAndRestart;
+						} else if (id._name == name) {
+							_tasksConfs[name] = newConf;
+						}
 					}
-				}
 
-				stopTask(name);
+					stopTask(name);
+				} else {
+					_tasksConfs[name] = newConf;
+				}
 
 				int numProcs = newConf.getNumProcs();
 				for (int i = 0; i < numProcs; ++i) {
