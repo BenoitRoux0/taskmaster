@@ -148,7 +148,8 @@ void TaskManager::handleDeath(pid_t pid, int32_t status) {
 			task.dead(end);
 			task.procStatus = status;
 
-			if (_tasksConfs.contains(name._name)) {
+			if (!_tasksConfs.contains(name._name)) {
+				task.status = State::stopped;
 				continue;
 			}
 
