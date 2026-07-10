@@ -122,7 +122,8 @@ void TaskManager::reloadConf(const std::optional<std::string>& confFile) {
 				}
 			}
 		}
-	} catch (toml::syntax_error& e) {
+	} catch (std::exception& e) {
+		_logger.write("conf parsing error, ignoring changes");
 		std::print("{}", e.what());
 	}
 }
