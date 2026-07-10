@@ -24,23 +24,49 @@ struct TaskConf {
 	std::optional<mode_t>                             umask;
 	std::optional<std::map<std::string, std::string>> env;
 
-	const std::string                  getCmd() const { return cmd; }
-	int                                getNumProcs() const { return std::max(num_procs.value_or(1), 0); }
-	bool                               getStartAtLaunch() const { return start_at_launch.value_or(true); }
-	std::string                        getRestart() const { return restart.value_or("unexpected"); }
-	std::vector<int>                   getExitCodes() const { return exit_codes.value_or({0}); }
-	std::chrono::milliseconds		   getStartTime() const { return std::chrono::milliseconds(std::max(stop_time.value_or(1), 0)) * 1000; }
-	int                                getRetries() const { return std::max(retries.value_or(3), 0); }
-	int                                getStopSig() const { return stop_sig.value_or(SIGTERM); }
-	std::chrono::milliseconds          getStopTime() const { return std::chrono::milliseconds(std::max(stop_time.value_or(10), 0)) * 1000; }
+	const std::string getCmd() const { return cmd; }
+	int               getNumProcs() const { return std::max(num_procs.value_or(1), 0); }
+	bool              getStartAtLaunch() const { return start_at_launch.value_or(true); }
+	std::string       getRestart() const { return restart.value_or("unexpected"); }
+	std::vector<int>  getExitCodes() const { return exit_codes.value_or({0}); }
+
+	std::chrono::milliseconds getStartTime() const {
+		return std::chrono::milliseconds(std::max(stop_time.value_or(1), 0)) * 1000;
+	}
+
+	int getRetries() const { return std::max(retries.value_or(3), 0); }
+	int getStopSig() const { return stop_sig.value_or(SIGTERM); }
+
+	std::chrono::milliseconds getStopTime() const {
+		return std::chrono::milliseconds(std::max(stop_time.value_or(10), 0)) * 1000;
+	}
+
 	std::string                        getStdIn() const { return std_in.value_or(""); }
 	std::string                        getStdOut() const { return std_out.value_or(""); }
 	std::string                        getStdErr() const { return std_err.value_or(""); }
 	std::string                        getWorkDir() const { return workdir.value_or(""); }
 	mode_t                             getUmask() const { return umask.value_or(022); }
 	std::map<std::string, std::string> getEnv() const { return env.value_or({}); }
-	bool operator==(const TaskConf& task_conf) const = default;
+	bool                               operator==(const TaskConf& task_conf) const = default;
+	bool                               mustReload(const TaskConf& task_conf) const;
 };
+
+inline bool TaskConf::mustReload(const TaskConf& task_conf) const {
+	return cmd != task_conf.cmd ||
+		   start_at_launch != task_conf.start_at_launch ||
+		   restart != task_conf.restart ||
+		   exit_codes != task_conf.exit_codes ||
+		   start_time != task_conf.start_time ||
+		   retries != task_conf.retries ||
+		   stop_sig != task_conf.stop_sig ||
+		   stop_time != task_conf.stop_time ||
+		   std_in != task_conf.std_in ||
+		   std_out != task_conf.std_out ||
+		   std_err != task_conf.std_err ||
+		   workdir != task_conf.workdir ||
+		   umask != task_conf.umask ||
+		   env != task_conf.env;
+}
 
 TOML11_DEFINE_CONVERSION_NON_INTRUSIVE(TaskConf,
                                        cmd,
