@@ -148,6 +148,10 @@ void TaskManager::handleDeath(pid_t pid, int32_t status) {
 			task.dead(end);
 			task.procStatus = status;
 
+			if (_tasksConfs.contains(name._name)) {
+				continue;
+			}
+
 			if (wasStopping) {
 				task.status = State::stopped;
 			} else {
@@ -542,7 +546,7 @@ TaskManager::TaskManager(bool daemonize) {
 		return;
 	}
 
-	if (daemon(1, 1) == -1) {
+	if (daemon(1, 0) == -1) {
 		error = strerror(errno);
 		_logger.write("daemon error: {}", error);
 		return;
